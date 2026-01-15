@@ -61,10 +61,10 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 8) Adaptive Scheduling
 
-8.1. [ ] Implement weight calculation and weighted selection per design.
-8.2. [ ] Add optional "prioritize unseen" setting.
-8.3. [ ] Ensure selection operates on filtered set only.
-8.4. [ ] Test: Create cards with different stats and verify high "don't know" cards appear more often.
+8.1. [x] Implement weight calculation and weighted selection per design.
+8.2. [x] Add optional "prioritize unseen" setting.
+8.3. [x] Ensure selection operates on filtered set only.
+8.4. [x] Test: Create cards with different stats and verify high "don't know" cards appear more often.
 
 ## 9) TTS (Offline Local Voices Only)
 

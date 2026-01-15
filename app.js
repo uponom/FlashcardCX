@@ -18,9 +18,132 @@ import {
 
   const defaultSettings = {
     uiLanguage: "en",
-    ttsEnabled: true,
+    ttsEnabled: false,
     prioritizeUnseen: false,
     theme: "light",
+    ttsVoiceMap: {},
+  };
+
+  const I18N = {
+    en: {
+      appTitle: "Flashcard Learning App",
+      emptyTitle: "No cards yet",
+      emptyDesc: "Create your first flashcard or import a set to start studying.",
+      createCard: "Create Card",
+      importCsv: "Import CSV",
+      settings: "Settings",
+      addCard: "Add Card",
+      filterByTags: "Filter by tags:",
+      noTagsYet: "No tags yet.",
+      cardsTitle: "Cards",
+      close: "Close",
+      allCards: "All cards",
+      newCard: "New Card",
+      wordLabel: "Word or phrase",
+      translationEn: "Translation (EN)",
+      translationUa: "Translation (UA)",
+      translationRu: "Translation (RU)",
+      tagsLabel: "Tags (comma-separated)",
+      languageLabel: "Language",
+      saveCard: "Save Card",
+      cancel: "Cancel",
+      noCardsYetShort: "No cards yet.",
+      noCardsToStudy: "No cards to study.",
+      statsLine: "Total: ✅ {totalKnow} / ❌ {totalDont} · Recent20: ✅ {recentKnow} / ❌ {recentDont}",
+      speak: "Speak",
+      dontKnow: "Don't know",
+      know: "Know",
+      settingsDesc: "Preferences",
+      toggleTheme: "Toggle theme",
+      toggleSpeech: "Toggle speech",
+      deleteCardTitle: "Delete card?",
+      deleteCardDesc: "This action cannot be undone.",
+      delete: "Delete",
+      edit: "Edit",
+      uiLanguage: "Interface language",
+    },
+    ua: {
+      appTitle: "Додаток для флешкарт",
+      emptyTitle: "Поки що немає карток",
+      emptyDesc: "Створіть першу картку або імпортуйте набір, щоб почати навчання.",
+      createCard: "Створити картку",
+      importCsv: "Імпорт CSV",
+      settings: "Налаштування",
+      addCard: "Додати картку",
+      filterByTags: "Фільтр за тегами:",
+      noTagsYet: "Тегів поки що немає.",
+      cardsTitle: "Картки",
+      close: "Закрити",
+      allCards: "Усі картки",
+      newCard: "Нова картка",
+      wordLabel: "Слово або фраза",
+      translationEn: "Переклад (EN)",
+      translationUa: "Переклад (UA)",
+      translationRu: "Переклад (RU)",
+      tagsLabel: "Теги (через кому)",
+      languageLabel: "Мова",
+      saveCard: "Зберегти",
+      cancel: "Скасувати",
+      noCardsYetShort: "Карток поки що немає.",
+      noCardsToStudy: "Немає карток для навчання.",
+      statsLine: "Всього: ✅ {totalKnow} / ❌ {totalDont} · Останні 20: ✅ {recentKnow} / ❌ {recentDont}",
+      speak: "Озвучити",
+      dontKnow: "Не знаю",
+      know: "Знаю",
+      settingsDesc: "Параметри",
+      toggleTheme: "Змінити тему",
+      toggleSpeech: "Озвучування",
+      deleteCardTitle: "Видалити картку?",
+      deleteCardDesc: "Цю дію неможливо скасувати.",
+      delete: "Видалити",
+      edit: "Редагувати",
+      uiLanguage: "Мова інтерфейсу",
+    },
+    ru: {
+      appTitle: "Приложение флеш-карт",
+      emptyTitle: "Карточек пока нет",
+      emptyDesc: "Создайте первую карточку или импортируйте набор, чтобы начать обучение.",
+      createCard: "Создать карточку",
+      importCsv: "Импорт CSV",
+      settings: "Настройки",
+      addCard: "Добавить карточку",
+      filterByTags: "Фильтр по тегам:",
+      noTagsYet: "Тегов пока нет.",
+      cardsTitle: "Карточки",
+      close: "Закрыть",
+      allCards: "Все карточки",
+      newCard: "Новая карточка",
+      wordLabel: "Слово или фраза",
+      translationEn: "Перевод (EN)",
+      translationUa: "Перевод (UA)",
+      translationRu: "Перевод (RU)",
+      tagsLabel: "Теги (через запятую)",
+      languageLabel: "Язык",
+      saveCard: "Сохранить",
+      cancel: "Отмена",
+      noCardsYetShort: "Карточек пока нет.",
+      noCardsToStudy: "Нет карточек для обучения.",
+      statsLine: "Всего: ✅ {totalKnow} / ❌ {totalDont} · Последние 20: ✅ {recentKnow} / ❌ {recentDont}",
+      speak: "Озвучить",
+      dontKnow: "Не знаю",
+      know: "Знаю",
+      settingsDesc: "Параметры",
+      toggleTheme: "Сменить тему",
+      toggleSpeech: "Озвучивание",
+      deleteCardTitle: "Удалить карточку?",
+      deleteCardDesc: "Это действие нельзя отменить.",
+      delete: "Удалить",
+      edit: "Редактировать",
+      uiLanguage: "Язык интерфейса",
+    },
+  };
+
+  const createTranslator = (lang) => {
+    const dict = I18N[lang] || I18N.en;
+    return (key, vars = {}) => {
+      const template = dict[key] || I18N.en[key] || key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+    };
   };
 
   const storage = createStorageAdapter(localStorage, defaultSettings, STORAGE_KEYS);
@@ -134,6 +257,10 @@ import {
   };
 
   const app = document.getElementById("app");
+  const voiceCache = {
+    voices: [],
+    ready: false,
+  };
 
   const loadedFlashcards = storage.loadFlashcards();
   const migration = migrateFlashcards(loadedFlashcards);
@@ -185,6 +312,58 @@ import {
     }
   };
 
+  const loadVoices = () => {
+    if (!("speechSynthesis" in window)) return [];
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length) {
+        voiceCache.voices = voices;
+        voiceCache.ready = true;
+      }
+      return voiceCache.voices;
+    } catch (error) {
+      console.warn("TTS voice loading failed.", error);
+      return [];
+    }
+  };
+
+  const pickVoice = (langCode, settings) => {
+    if (!voiceCache.ready) loadVoices();
+    const voices = voiceCache.voices || [];
+    const preferredName = settings.ttsVoiceMap?.[langCode];
+    if (preferredName) {
+      const exact = voices.find((voice) => voice.name === preferredName);
+      if (exact) return exact;
+    }
+    const matchesLang = voices.find((voice) => voice.lang.toLowerCase().startsWith(langCode));
+    return matchesLang || null;
+  };
+
+  const sanitizeTtsText = (text) => {
+    return String(text || "")
+      .replace(/\([^)]*\)/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  };
+
+  const speakText = (text, langCode, force = false) => {
+    if (!("speechSynthesis" in window)) return;
+    const cleanText = sanitizeTtsText(text);
+    if (!cleanText) return;
+    const settings = store.getState().settings;
+    if (!settings.ttsEnabled && !force) return;
+    try {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = langCode;
+      const voice = pickVoice(langCode, settings);
+      if (voice) utterance.voice = voice;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.warn("TTS playback failed.", error);
+    }
+  };
+
   const openCardForm = (card = null) => {
     if (!app) return;
     app.dataset.showForm = "true";
@@ -208,14 +387,14 @@ import {
     }
   };
 
-  const renderEmptyState = () => `
+  const renderEmptyState = (t) => `
     <section class="panel empty-state" aria-label="Empty state">
-      <h2 class="empty-state__title">No cards yet</h2>
-      <p class="panel__content">Create your first flashcard or import a set to start studying.</p>
+      <h2 class="empty-state__title">${t("emptyTitle")}</h2>
+      <p class="panel__content">${t("emptyDesc")}</p>
       <div class="empty-state__actions">
-        <button class="empty-state__button" type="button">Create Card</button>
-        <button class="empty-state__button" type="button">Import CSV</button>
-        <button class="empty-state__button" type="button">Settings</button>
+        <button class="empty-state__button" type="button">${t("createCard")}</button>
+        <button class="empty-state__button" type="button">${t("importCsv")}</button>
+        <button class="empty-state__button" type="button">${t("settings")}</button>
       </div>
     </section>
   `;
@@ -231,32 +410,32 @@ import {
     return app.dataset.showCards === "true";
   };
 
-  const renderLayout = (state, studyMarkup, studyStatsMarkup) => `
+  const renderLayout = (state, studyMarkup, studyStatsMarkup, t) => `
     <header class="app__header">
-      <h1 class="app__title">Flashcard Learning App</h1>
+      <h1 class="app__title">${t("appTitle")}</h1>
     </header>
     <div class="app__layout">
-      ${state.flashcards.length === 0 ? renderEmptyState() : `
+      ${state.flashcards.length === 0 ? renderEmptyState(t) : `
         <div class="study-column">
           <section class="panel">
             ${studyMarkup}
             <div class="tag-filter">
-              <span class="panel__content">Filter by tags:</span>
+              <span class="panel__content">${t("filterByTags")}</span>
               <div class="tag-filter__list"></div>
             </div>
             ${studyStatsMarkup}
           </section>
           ${shouldShowForm(state) ? "" : `
             <div class="inline-action">
-              <button class="app__action" type="button" data-action="open-create">Add Card</button>
+              <button class="app__action" type="button" data-action="open-create">${t("addCard")}</button>
             </div>
           `}
         </div>
         ${shouldShowCards() ? `
           <section class="panel" data-view="card-list">
             <div class="panel__header">
-              <h2 class="panel__title">Cards</h2>
-              <button type="button" class="empty-state__button" data-action="close-cards">Close</button>
+              <h2 class="panel__title">${t("cardsTitle")}</h2>
+              <button type="button" class="empty-state__button" data-action="close-cards">${t("close")}</button>
             </div>
             <div class="card-list"></div>
           </section>
@@ -265,30 +444,30 @@ import {
     </div>
     ${shouldShowForm(state) ? `
       <section class="panel" data-view="card-form">
-        <h2 class="panel__title">New Card</h2>
+        <h2 class="panel__title">${t("newCard")}</h2>
         <form class="card-form" autocomplete="off">
           <label class="field">
-            <span class="field__label">Word or phrase</span>
+            <span class="field__label">${t("wordLabel")}</span>
             <input name="word" type="text" required>
           </label>
           <label class="field">
-            <span class="field__label">Translation (EN)</span>
+            <span class="field__label">${t("translationEn")}</span>
             <input name="translation-en" type="text" placeholder="Optional">
           </label>
           <label class="field">
-            <span class="field__label">Translation (UA)</span>
+            <span class="field__label">${t("translationUa")}</span>
             <input name="translation-ua" type="text" placeholder="Optional">
           </label>
           <label class="field">
-            <span class="field__label">Translation (RU)</span>
+            <span class="field__label">${t("translationRu")}</span>
             <input name="translation-ru" type="text" placeholder="Optional">
           </label>
           <label class="field">
-            <span class="field__label">Tags (comma-separated)</span>
+            <span class="field__label">${t("tagsLabel")}</span>
             <input name="tags" type="text" placeholder="travel, food">
           </label>
           <label class="field">
-            <span class="field__label">Language</span>
+            <span class="field__label">${t("languageLabel")}</span>
             <select name="language">
               <option value="en">English</option>
               <option value="de">German</option>
@@ -300,30 +479,41 @@ import {
           </label>
           <p class="form-error" data-form-error></p>
           <div class="card-form__actions">
-            <button type="submit" class="app__action">Save Card</button>
-            <button type="button" class="empty-state__button" data-action="cancel-form">Cancel</button>
+            <button type="submit" class="app__action">${t("saveCard")}</button>
+            <button type="button" class="empty-state__button" data-action="cancel-form">${t("cancel")}</button>
           </div>
         </form>
       </section>
     ` : ""}
     <section class="panel">
-      <h2 class="panel__title">Settings</h2>
-      <p class="panel__content">Settings placeholder.</p>
+      <h2 class="panel__title">${t("settings")}</h2>
+      <p class="panel__content">${t("settingsDesc")}</p>
       <div class="settings-actions">
-        <button class="empty-state__button" type="button" data-action="open-cards">All cards</button>
-        <button class="empty-state__button" type="button" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme">
+        <button class="empty-state__button" type="button" data-action="open-cards">${t("allCards")}</button>
+        <button class="empty-state__button" type="button" data-action="toggle-theme" title="${t("toggleTheme")}" aria-label="${t("toggleTheme")}">
           ${state.settings.theme === "dark" ? "🌙" : "☀️"}
         </button>
+        <button class="empty-state__button" type="button" data-action="toggle-tts" title="${t("toggleSpeech")}" aria-label="${t("toggleSpeech")}">
+          ${state.settings.ttsEnabled ? "🔊" : "🔇"}
+        </button>
       </div>
+      <label class="field">
+        <span class="field__label">${t("uiLanguage")}</span>
+        <select name="ui-language" data-action="ui-language">
+          <option value="en" ${state.settings.uiLanguage === "en" ? "selected" : ""}>English</option>
+          <option value="ua" ${state.settings.uiLanguage === "ua" ? "selected" : ""}>Українська</option>
+          <option value="ru" ${state.settings.uiLanguage === "ru" ? "selected" : ""}>Русский</option>
+        </select>
+      </label>
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
     </section>
     <dialog class="modal" data-modal="confirm-delete">
       <div class="modal__content">
-        <h3 class="panel__title">Delete card?</h3>
-        <p class="panel__content">This action cannot be undone.</p>
+        <h3 class="panel__title">${t("deleteCardTitle")}</h3>
+        <p class="panel__content">${t("deleteCardDesc")}</p>
         <div class="modal__actions">
-          <button type="button" class="empty-state__button" data-action="confirm-cancel" autofocus>Cancel</button>
-          <button type="button" class="app__action" data-action="confirm-delete">Delete</button>
+          <button type="button" class="empty-state__button" data-action="confirm-cancel" autofocus>${t("cancel")}</button>
+          <button type="button" class="app__action" data-action="confirm-delete">${t("delete")}</button>
         </div>
       </div>
     </dialog>
@@ -343,6 +533,7 @@ import {
     const proceed = () => {
       app.dataset.studyFlip = "false";
       app.dataset.flipDirection = "";
+      app.dataset.lastSpokenId = "";
       store.dispatch({ type: "study/setCurrent", payload: nextId });
       pendingNextId = null;
       renderApp();
@@ -355,21 +546,26 @@ import {
     }
   };
 
-  const buildStudyMarkup = (state, filteredCards) => {
+  const buildStudyMarkup = (state, filteredCards, t) => {
     if (!filteredCards.length) {
-      return `<p class="panel__content">No cards to study.</p>`;
+      return `<p class="panel__content">${t("noCardsToStudy")}</p>`;
     }
     const current = filteredCards.find((card) => card.id === state.currentCardId) || filteredCards[0];
     const translations = normalizeTranslations(current.translations);
     const translation = translations[state.settings.uiLanguage] || "";
+    if (app) {
+      app.dataset.currentSpeakText = current.word;
+      app.dataset.currentSpeakLang = current.language || "en";
+      app.dataset.currentCardId = current.id;
+    }
     return `
       <div class="study-controls" data-action="study-card">
         <button
           class="study-action study-action--left"
           type="button"
           data-action="answer-dont-know"
-          aria-label="Don't know"
-          title="Don't know"
+          aria-label="${t("dontKnow")}"
+          title="${t("dontKnow")}"
         >❌</button>
         <div class="study-card" data-card-id="${current.id}">
           <div class="study-card__inner">
@@ -399,8 +595,8 @@ import {
           class="study-action study-action--right"
           type="button"
           data-action="answer-know"
-          aria-label="Know"
-          title="Know"
+          aria-label="${t("know")}"
+          title="${t("know")}"
         >✅</button>
       </div>
     `;
@@ -409,6 +605,9 @@ import {
   const renderApp = () => {
     if (!app) return;
     const state = store.getState();
+    const t = createTranslator(state.settings.uiLanguage);
+    document.title = t("appTitle");
+    document.documentElement.lang = state.settings.uiLanguage || "en";
     const filteredCards = selectors.getFilteredCards(state);
     if (
       filteredCards.length &&
@@ -420,7 +619,7 @@ import {
       return;
     }
 
-    const studyMarkup = buildStudyMarkup(state, filteredCards);
+    const studyMarkup = buildStudyMarkup(state, filteredCards, t);
     const studyStatsMarkup = (() => {
       if (!filteredCards.length) return "";
       const current = filteredCards.find((card) => card.id === state.currentCardId) || filteredCards[0];
@@ -430,17 +629,30 @@ import {
       const recentKnow = Number(stats.RecentKnows || 0);
       const recentDont = Number(stats.RecentDontKnows || 0);
       return `
-        <p class="study-stats">
-          Total: ✅ ${totalKnow} / ❌ ${totalDont} · Recent20: ✅ ${recentKnow} / ❌ ${recentDont}
-        </p>
+        <div class="study-stats">
+          <p class="study-stats__text">
+            ${t("statsLine", { totalKnow, totalDont, recentKnow, recentDont })}
+          </p>
+          <button class="study-stats__speak" type="button" data-action="speak-now" title="${t("speak")}" aria-label="${t("speak")}">
+            🔈
+          </button>
+        </div>
       `;
     })();
-    app.innerHTML = renderLayout(state, studyMarkup, studyStatsMarkup);
+    app.innerHTML = renderLayout(state, studyMarkup, studyStatsMarkup, t);
     document.body.dataset.theme = state.settings.theme || "light";
     if (app.dataset.studyFlip === "true") {
       app.classList.add("is-answering");
     } else {
       app.classList.remove("is-answering");
+    }
+    if (state.settings.ttsEnabled && app.dataset.currentSpeakText && app.dataset.studyFlip !== "true") {
+      if (app.dataset.lastSpokenId !== app.dataset.currentCardId) {
+        app.dataset.lastSpokenId = app.dataset.currentCardId || "";
+        setTimeout(() => {
+          speakText(app.dataset.currentSpeakText, app.dataset.currentSpeakLang || "en");
+        }, 0);
+      }
     }
     if (app.dataset.activeCardId !== undefined && app.dataset.showForm === "true") {
       const activeId = app.dataset.activeCardId || "";
@@ -467,7 +679,7 @@ import {
             `
             )
             .join("")
-        : `<span class="panel__content">No tags yet.</span>`;
+        : `<span class="panel__content">${t("noTagsYet")}</span>`;
     }
 
     const list = app.querySelector("[data-view='card-list'] .card-list");
@@ -500,10 +712,10 @@ import {
                   })()}
                 </div>
                 <div class="card-list__actions">
-                  <button type="button" class="empty-state__button" data-action="edit-card" data-id="${card.id}" title="Edit" aria-label="Edit">
+                  <button type="button" class="empty-state__button" data-action="edit-card" data-id="${card.id}" title="${t("edit")}" aria-label="${t("edit")}">
                     ✏️
                   </button>
-                  <button type="button" class="empty-state__button" data-action="delete-card" data-id="${card.id}" title="Delete" aria-label="Delete">
+                  <button type="button" class="empty-state__button" data-action="delete-card" data-id="${card.id}" title="${t("delete")}" aria-label="${t("delete")}">
                     🗑️
                   </button>
                 </div>
@@ -511,7 +723,7 @@ import {
             `
             )
             .join("")
-        : `<p class="panel__content">No cards yet.</p>`;
+        : `<p class="panel__content">${t("noCardsYetShort")}</p>`;
     }
 
     if (app.dataset.studyFlip === "true") {
@@ -531,6 +743,17 @@ import {
   }
   if (app && app.dataset.showCards === undefined) {
     app.dataset.showCards = "false";
+  }
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.addEventListener("voiceschanged", () => {
+      loadVoices();
+      const state = store.getState();
+      if (state.settings.ttsEnabled && app?.dataset.currentSpeakText && app?.dataset.lastSpokenId !== app?.dataset.currentCardId) {
+        app.dataset.lastSpokenId = app.dataset.currentCardId || "";
+        speakText(app.dataset.currentSpeakText, app.dataset.currentSpeakLang || "en");
+      }
+    });
+    loadVoices();
   }
 
   store.subscribe(renderApp);
@@ -614,6 +837,13 @@ import {
       if (target.dataset.action === "toggle-theme") {
         const nextTheme = store.getState().settings.theme === "dark" ? "light" : "dark";
         store.dispatch({ type: "settings/set", payload: { theme: nextTheme } });
+        persistSettings(store.getState().settings);
+        renderApp();
+      }
+
+      if (target.dataset.action === "toggle-tts") {
+        const nextTts = !store.getState().settings.ttsEnabled;
+        store.dispatch({ type: "settings/set", payload: { ttsEnabled: nextTts } });
         persistSettings(store.getState().settings);
         renderApp();
       }
@@ -711,6 +941,10 @@ import {
           dialog.close();
         }
       }
+
+      if (target.dataset.action === "speak-now") {
+        speakText(app?.dataset.currentSpeakText, app?.dataset.currentSpeakLang || "en", true);
+      }
     });
 
     app.addEventListener("change", (event) => {
@@ -720,6 +954,16 @@ import {
       const checkboxes = Array.from(app.querySelectorAll(".tag-filter__list input[type='checkbox']"));
       const selectedTags = checkboxes.filter((box) => box.checked).map((box) => box.value);
       store.dispatch({ type: "filters/setTags", payload: selectedTags });
+    });
+
+    app.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (target.dataset.action !== "ui-language") return;
+      const nextLang = target.value;
+      store.dispatch({ type: "settings/set", payload: { uiLanguage: nextLang } });
+      persistSettings(store.getState().settings);
+      renderApp();
     });
 
     app.addEventListener("pointerdown", (event) => {

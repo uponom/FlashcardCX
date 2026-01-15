@@ -256,6 +256,7 @@ Normalization rules:
 - `ttsEnabled`: boolean
 - `prioritizeUnseen`: boolean
 - `theme`: `light` | `dark`
+- `ttsVoiceMap`: mapping of language code -> voice name (optional)
 
 ### Runtime State (in-memory)
 

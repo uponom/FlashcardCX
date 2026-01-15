@@ -31,8 +31,10 @@ const STORAGE_KEYS = {
 
 const defaultSettings = {
   uiLanguage: "en",
-  ttsEnabled: true,
+  ttsEnabled: false,
   prioritizeUnseen: false,
+  theme: "light",
+  ttsVoiceMap: {},
 };
 
 const storage = createStorageAdapter(storageLike, defaultSettings, STORAGE_KEYS);
