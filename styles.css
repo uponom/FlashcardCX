@@ -74,6 +74,10 @@ body {
   padding: 2rem;
 }
 
+.app__settings {
+  align-self: end;
+}
+
 .app__header {
   display: none;
 }
@@ -92,6 +96,7 @@ body {
   font-size: 1rem;
   border-radius: 999px;
   cursor: pointer;
+  box-shadow: 0 6px 14px var(--shadow);
 }
 
 .app__layout {
@@ -169,6 +174,7 @@ body {
   padding: 0.25rem 0.5rem;
   cursor: pointer;
   font-size: 0.9rem;
+  box-shadow: 0 6px 14px var(--shadow);
 }
 
 .study-column .app__action {
@@ -220,6 +226,7 @@ body {
   font-size: 1.4rem;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  box-shadow: 0 6px 14px var(--shadow);
 }
 
 .app.is-answering .study-action {
@@ -325,6 +332,24 @@ body {
   margin-top: 0.9rem;
 }
 
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.settings-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--panel-bg);
+  border-radius: 14px;
+}
+
 .card-list {
   display: grid;
   gap: 0.75rem;
@@ -375,7 +400,7 @@ body {
   border: none;
   border-radius: 16px;
   padding: 0;
-  width: min(360px, 90vw);
+  width: min(480px, 94vw);
 }
 
 .modal::backdrop {
@@ -427,6 +452,7 @@ body {
   cursor: pointer;
   font-size: 0.9rem;
   min-height: 36px;
+  box-shadow: 0 6px 14px var(--shadow);
 }
 
 .lang-toggle__button.is-active {
@@ -521,6 +547,7 @@ body {
   border-radius: 999px;
   cursor: pointer;
   min-height: 36px;
+  box-shadow: 0 6px 14px var(--shadow);
 }
 
 body[data-theme="dark"] .app__action {
@@ -566,6 +593,15 @@ body[data-theme="light"] .app__action {
   .card-list__item {
     flex-direction: column;
     align-items: flex-start;
+    width: 100%;
+  }
+
+  .card-list__info {
+    width: 100%;
+  }
+
+  .card-list__progress {
+    width: 100%;
   }
 
   .card-form__actions {

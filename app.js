@@ -1,5 +1,6 @@
 import {
   createFlashcard,
+  generateId,
   normalizeTags,
   normalizeTranslations,
   migrateFlashcards,
@@ -7,6 +8,7 @@ import {
   createStorageAdapter,
   pickNextCard,
 } from "./core.mjs";
+import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./backup.mjs";
 
 (() => {
   const STORAGE_KEYS = {
@@ -56,6 +58,12 @@ import {
       settingsDesc: "Preferences",
       toggleTheme: "Toggle theme",
       toggleSpeech: "Toggle speech",
+      backup: "Backup",
+      restore: "Restore",
+      restoreTitle: "Restore cards and settings",
+      restoreDesc: "Choose how to apply the backup.",
+      merge: "Merge",
+      overwrite: "Overwrite",
       deleteCardTitle: "Delete card?",
       deleteCardDesc: "This action cannot be undone.",
       delete: "Delete",
@@ -93,6 +101,12 @@ import {
       settingsDesc: "Параметри",
       toggleTheme: "Змінити тему",
       toggleSpeech: "Озвучування",
+      backup: "Бекап",
+      restore: "Відновити",
+      restoreTitle: "Відновлення карток і налаштувань",
+      restoreDesc: "Оберіть спосіб застосування бекапу.",
+      merge: "Об'єднати",
+      overwrite: "Перезаписати",
       deleteCardTitle: "Видалити картку?",
       deleteCardDesc: "Цю дію неможливо скасувати.",
       delete: "Видалити",
@@ -130,6 +144,12 @@ import {
       settingsDesc: "Параметры",
       toggleTheme: "Сменить тему",
       toggleSpeech: "Озвучивание",
+      backup: "Бэкап",
+      restore: "Восстановить",
+      restoreTitle: "Восстановление карточек и настроек",
+      restoreDesc: "Выберите способ применения бэкапа.",
+      merge: "Объединить",
+      overwrite: "Перезаписать",
       deleteCardTitle: "Удалить карточку?",
       deleteCardDesc: "Это действие нельзя отменить.",
       delete: "Удалить",
@@ -312,6 +332,11 @@ import {
     }
   };
 
+  const ensureCardId = (card) => {
+    if (card.id) return card;
+    return { ...card, id: generateId() };
+  };
+
   const loadVoices = () => {
     if (!("speechSynthesis" in window)) return [];
     try {
@@ -483,23 +508,28 @@ import {
         </form>
       </section>
     ` : ""}
-    <section class="panel">
+    <section class="panel app__settings">
       <h2 class="panel__title">${t("settings")}</h2>
-      <p class="panel__content">${t("settingsDesc")}</p>
-      <div class="settings-actions">
-        <button class="empty-state__button" type="button" data-action="open-cards">${t("allCards")}</button>
-        <button class="empty-state__button" type="button" data-action="toggle-theme" title="${t("toggleTheme")}" aria-label="${t("toggleTheme")}">
-          ${state.settings.theme === "dark" ? "🌙" : "☀️"}
-        </button>
-        <button class="empty-state__button" type="button" data-action="toggle-tts" title="${t("toggleSpeech")}" aria-label="${t("toggleSpeech")}">
-          ${state.settings.ttsEnabled ? "🔊" : "🔇"}
-        </button>
-      </div>
-      <div class="field">
-        <div class="lang-toggle" role="group" aria-label="${t("uiLanguage")}">
-          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "en" ? "is-active" : ""}" data-action="ui-language" data-lang="en">EN</button>
-          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ua" ? "is-active" : ""}" data-action="ui-language" data-lang="ua">UA</button>
-          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ru" ? "is-active" : ""}" data-action="ui-language" data-lang="ru">RU</button>
+      <div class="settings-row">
+        <div class="settings-group">
+          <button class="empty-state__button" type="button" data-action="open-cards">${t("allCards")}</button>
+          <button class="empty-state__button" type="button" data-action="toggle-theme" title="${t("toggleTheme")}" aria-label="${t("toggleTheme")}">
+            ${state.settings.theme === "dark" ? "🌙" : "☀️"}
+          </button>
+          <button class="empty-state__button" type="button" data-action="toggle-tts" title="${t("toggleSpeech")}" aria-label="${t("toggleSpeech")}">
+            ${state.settings.ttsEnabled ? "🔊" : "🔇"}
+          </button>
+        </div>
+        <div class="settings-group">
+          <div class="lang-toggle" role="group" aria-label="${t("uiLanguage")}">
+            <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "en" ? "is-active" : ""}" data-action="ui-language" data-lang="en">EN</button>
+            <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ua" ? "is-active" : ""}" data-action="ui-language" data-lang="ua">UA</button>
+            <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ru" ? "is-active" : ""}" data-action="ui-language" data-lang="ru">RU</button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <button class="empty-state__button" type="button" data-action="backup">${t("backup")}</button>
+          <button class="empty-state__button" type="button" data-action="restore">${t("restore")}</button>
         </div>
       </div>
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
@@ -514,11 +544,24 @@ import {
         </div>
       </div>
     </dialog>
+    <dialog class="modal" data-modal="restore-mode">
+      <div class="modal__content">
+        <h3 class="panel__title">${t("restoreTitle")}</h3>
+        <p class="panel__content">${t("restoreDesc")}</p>
+        <div class="modal__actions">
+          <button type="button" class="empty-state__button" data-action="restore-cancel" autofocus>${t("cancel")}</button>
+          <button type="button" class="empty-state__button" data-action="restore-merge">${t("merge")}</button>
+          <button type="button" class="app__action" data-action="restore-overwrite">${t("overwrite")}</button>
+        </div>
+      </div>
+    </dialog>
+    <input type="file" accept=".json,application/json" data-action="restore-file" hidden>
   `;
 
   let advanceTimer = null;
   let pendingNextId = null;
   let swipeStart = null;
+  let pendingRestorePayload = null;
 
   const transitionToNext = (nextId) => {
     if (!nextId) return;
@@ -950,15 +993,121 @@ import {
       if (target.dataset.action === "speak-now") {
         speakText(app?.dataset.currentSpeakText, app?.dataset.currentSpeakLang || "en", true);
       }
+
+      if (target.dataset.action === "backup") {
+        const payload = {
+          schemaVersion: BACKUP_SCHEMA_VERSION,
+          exportedAt: new Date().toISOString(),
+          flashcards: store.getState().flashcards,
+          settings: store.getState().settings,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "flashcards-backup.json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      if (target.dataset.action === "restore") {
+        const input = app.querySelector("[data-action='restore-file']");
+        if (input instanceof HTMLInputElement) {
+          input.value = "";
+          input.click();
+        }
+      }
+
+      if (target.dataset.action === "restore-cancel") {
+        const dialog = app.querySelector("[data-modal='restore-mode']");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
+        }
+        pendingRestorePayload = null;
+      }
+
+      if (target.dataset.action === "restore-merge" || target.dataset.action === "restore-overwrite") {
+        const mode = target.dataset.action === "restore-merge" ? "merge" : "overwrite";
+        if (!pendingRestorePayload) return;
+        const prepared = prepareIncoming(pendingRestorePayload, BACKUP_SCHEMA_VERSION, generateId);
+        if (!prepared.ok) {
+          alert("Invalid backup format.");
+          return;
+        }
+        const incoming = prepared.cards;
+        let nextCards = [];
+        if (mode === "overwrite") {
+          nextCards = incoming;
+        } else {
+          const existing = store.getState().flashcards;
+          nextCards = mergeCards(existing, incoming);
+        }
+        if (mode === "overwrite" && prepared.settings) {
+          store.dispatch({ type: "settings/set", payload: prepared.settings });
+          persistSettings(store.getState().settings);
+        }
+        store.dispatch({ type: "flashcards/set", payload: nextCards });
+        store.dispatch({ type: "study/setCurrent", payload: nextCards[0]?.id || null });
+        persistFlashcards(nextCards);
+        pendingRestorePayload = null;
+        const dialog = app.querySelector("[data-modal='restore-mode']");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
+        }
+        renderApp();
+      }
     });
 
     app.addEventListener("change", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
-      if (!target.closest(".tag-filter")) return;
-      const checkboxes = Array.from(app.querySelectorAll(".tag-filter__list input[type='checkbox']"));
-      const selectedTags = checkboxes.filter((box) => box.checked).map((box) => box.value);
-      store.dispatch({ type: "filters/setTags", payload: selectedTags });
+      if (target.closest(".tag-filter")) {
+        const checkboxes = Array.from(app.querySelectorAll(".tag-filter__list input[type='checkbox']"));
+        const selectedTags = checkboxes.filter((box) => box.checked).map((box) => box.value);
+        store.dispatch({ type: "filters/setTags", payload: selectedTags });
+        return;
+      }
+      if (target.dataset.action === "restore-file") {
+        const file = target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || ""));
+            if (!validateBackup(parsed, BACKUP_SCHEMA_VERSION)) {
+              alert("Invalid backup format.");
+              return;
+            }
+            const existing = store.getState().flashcards;
+            if (existing.length) {
+              pendingRestorePayload = parsed;
+              const dialog = app.querySelector("[data-modal='restore-mode']");
+              if (dialog instanceof HTMLDialogElement) {
+                dialog.showModal();
+              }
+            } else {
+              const prepared = prepareIncoming(parsed, BACKUP_SCHEMA_VERSION, generateId);
+              if (!prepared.ok) {
+                alert("Invalid backup format.");
+                return;
+              }
+              const incoming = prepared.cards;
+              if (prepared.settings) {
+                store.dispatch({ type: "settings/set", payload: prepared.settings });
+                persistSettings(store.getState().settings);
+              }
+              store.dispatch({ type: "flashcards/set", payload: incoming });
+              store.dispatch({ type: "study/setCurrent", payload: incoming[0]?.id || null });
+              persistFlashcards(incoming);
+              renderApp();
+            }
+          } catch (error) {
+            console.warn("Restore failed.", error);
+            alert("Restore failed.");
+          }
+        };
+        reader.readAsText(file);
+      }
     });
 
 

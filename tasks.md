@@ -68,28 +68,28 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 9) TTS (Offline Local Voices Only)
 
-9.1. [ ] Implement TTS engine using Web Speech API local voices only.
-9.2. [ ] Add per-card language selection and map to TTS codes.
-9.3. [ ] Add TTS toggle; persist setting.
-9.4. [ ] Handle missing voices gracefully.
-9.5. [ ] Test: Toggle TTS on/off and verify speech uses local voices or is disabled with a notice.
+9.1. [x] Implement TTS engine using Web Speech API local voices only.
+9.2. [x] Add per-card language selection and map to TTS codes.
+9.3. [x] Add TTS toggle; persist setting.
+9.4. [x] Handle missing voices gracefully.
+9.5. [x] Test: Toggle TTS on/off and verify speech uses local voices or is disabled with a notice.
 
 ## 10) i18n (EN/UA/RU)
 
-10.1. [ ] Build dictionary tables and translation function.
-10.2. [ ] Wire UI to update labels and translation display when UI language changes.
-10.3. [ ] Persist `uiLanguage` in settings.
-10.4. [ ] Test: Switch UI language and verify all visible strings update.
-10.5. [ ] Add light/dark theme toggle in Settings and persist `theme`.
-10.6. [ ] Test: Theme toggle switches and persists across reloads.
+10.1. [x] Build dictionary tables and translation function.
+10.2. [x] Wire UI to update labels and translation display when UI language changes.
+10.3. [x] Persist `uiLanguage` in settings.
+10.4. [x] Test: Switch UI language and verify all visible strings update.
+10.5. [x] Add light/dark theme toggle in Settings and persist `theme`.
+10.6. [x] Test: Theme toggle switches and persists across reloads.
 
 ## 11) Backup and Restore
 
-11.1. [ ] Implement JSON backup export with schema version (including translations object).
+11.1. [ ] Implement JSON backup export with schema version (including translations object and settings).
 11.2. [ ] Implement restore flow with validation and merge/overwrite selection.
 11.3. [ ] Implement duplicate detection by normalized word+translations(EN/UA/RU)+language.
 11.4. [ ] Merge behavior: keep existing stats, optionally union tags.
-11.5. [ ] Test: Export, clear storage, restore, and verify full data integrity; test merge vs overwrite.
+11.5. [ ] Test: Export, clear storage, restore, and verify full data integrity; test merge vs overwrite and settings restore.
 
 ## 12) CSV Import
 

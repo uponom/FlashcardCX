@@ -52,12 +52,14 @@ Flashcard Learning App - это PWA приложение для изучения
 
 #### Acceptance Criteria
 
-1. WHEN a user requests a backup, THE App SHALL export all flashcards to a downloadable file
+1. WHEN a user requests a backup, THE App SHALL export all flashcards and settings to a downloadable file
 2. WHEN a user uploads a backup file, THE App SHALL validate the file format
 3. IF Storage contains existing flashcards WHEN restoring a backup, THEN THE App SHALL prompt the user to choose between merge or overwrite
 4. WHEN the user chooses merge, THE App SHALL combine existing flashcards with backup flashcards without duplicates
 5. WHEN the user chooses overwrite, THE App SHALL replace all existing flashcards with backup flashcards
 6. WHEN restore completes, THE App SHALL persist the updated flashcard collection to Storage
+7. The backup file SHALL include current application settings (uiLanguage, theme, ttsEnabled, prioritizeUnseen, ttsVoiceMap)
+8. WHEN restore completes, THE App SHALL restore settings from the backup
 
 ### Requirement 4: Импорт из CSV
 

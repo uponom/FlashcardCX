@@ -1,8 +1,10 @@
-const safeJsonParse = (value, fallback) => {
+const safeJsonParse = (value, fallback, silent = false) => {
   try {
     return JSON.parse(value);
   } catch (error) {
-    console.warn("Failed to parse JSON from storage.", error);
+    if (!silent) {
+      console.warn("Failed to parse JSON from storage.", error);
+    }
     return fallback;
   }
 };
@@ -107,10 +109,10 @@ const pickNextCard = (cards, settings, rng = Math.random) => {
   return selectWeighted(cards, weights, rng);
 };
 
-const createStorageAdapter = (storageLike, defaultSettings, storageKeys) => ({
+const createStorageAdapter = (storageLike, defaultSettings, storageKeys, options = {}) => ({
   loadFlashcards() {
     const raw = storageLike.getItem(storageKeys.flashcards);
-    const parsed = raw ? safeJsonParse(raw, []) : [];
+    const parsed = raw ? safeJsonParse(raw, [], options.silentParseErrors) : [];
     return Array.isArray(parsed) ? parsed : [];
   },
   saveFlashcards(flashcards) {
@@ -118,7 +120,7 @@ const createStorageAdapter = (storageLike, defaultSettings, storageKeys) => ({
   },
   loadSettings() {
     const raw = storageLike.getItem(storageKeys.settings);
-    const parsed = raw ? safeJsonParse(raw, {}) : {};
+    const parsed = raw ? safeJsonParse(raw, {}, options.silentParseErrors) : {};
     return { ...defaultSettings, ...(parsed || {}) };
   },
   saveSettings(settings) {
@@ -170,6 +172,7 @@ const migrateFlashcards = (cards) => {
 
 export {
   createFlashcard,
+  generateId,
   normalizeTags,
   normalizeTranslations,
   migrateFlashcards,

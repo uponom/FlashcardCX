@@ -8,6 +8,8 @@ import {
   computeWeights,
   pickNextCard,
 } from "../core.mjs";
+import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "../backup.mjs";
+import { readFileSync } from "node:fs";
 
 const results = [];
 const assert = (name, condition) => {
@@ -37,7 +39,7 @@ const defaultSettings = {
   ttsVoiceMap: {},
 };
 
-const storage = createStorageAdapter(storageLike, defaultSettings, STORAGE_KEYS);
+const storage = createStorageAdapter(storageLike, defaultSettings, STORAGE_KEYS, { silentParseErrors: true });
 
 const testCard = createFlashcard({
   word: "hola",
@@ -109,6 +111,40 @@ assert(
 assert(
   "migrateFlashcards adds recent counters",
   migrated.cards[0].stats.RecentKnows === 0 && migrated.cards[0].stats.RecentDontKnows === 0
+);
+
+const backupPayload = {
+  schemaVersion: 1,
+  flashcards: [
+    { id: "1", word: "hi", translations: { en: "hi", ua: "", ru: "" }, language: "en", tags: [] },
+  ],
+  settings: {
+    uiLanguage: "ru",
+    ttsEnabled: false,
+    prioritizeUnseen: false,
+    theme: "dark",
+    ttsVoiceMap: {},
+  },
+};
+assert("validateBackup accepts matching schema", validateBackup(backupPayload, 1));
+assert("validateBackup rejects wrong schema", !validateBackup({ ...backupPayload, schemaVersion: 2 }, 1));
+
+const existingCards = [
+  { id: "1", word: "hola", translations: { en: "hello", ua: "", ru: "" }, language: "es", tags: ["a"] },
+];
+const incomingCards = [
+  { id: "2", word: "hola", translations: { en: "hello", ua: "", ru: "" }, language: "es", tags: ["b"] },
+];
+const merged = mergeCards(existingCards, incomingCards);
+assert("mergeCards dedupes by key", merged.length === 1 && merged[0].tags.includes("a") && merged[0].tags.includes("b"));
+
+const prepared = prepareIncoming(backupPayload, 1, () => "gen-id");
+assert("prepareIncoming returns ok", prepared.ok && prepared.cards.length === 1 && prepared.cards[0].id);
+
+const appSource = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+assert(
+  "app.js imports generateId from core.mjs",
+  appSource.includes("generateId") && appSource.includes('from "./core.mjs"')
 );
 
 const weightCards = [
