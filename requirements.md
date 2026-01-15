@@ -6,7 +6,7 @@ Flashcard Learning App - это PWA приложение для изучения
 
 ## Glossary
 
-- **Flashcard (Карточка)**: Учебная карточка, содержащая слово/фразу на иностранном языке, перевод, теги, язык и статистику изучения
+- **Flashcard (Карточка)**: Учебная карточка, содержащая слово/фразу на иностранном языке, переводы (EN/UA/RU, могут быть пустыми), теги, язык и статистику изучения
 - **App (Приложение)**: PWA приложение Flashcard Learning App
 - **Storage (Хранилище)**: Локальное хранилище браузера для сохранения карточек
 - **Backup (Бекап)**: Резервная копия всех карточек пользователя
@@ -24,15 +24,16 @@ Flashcard Learning App - это PWA приложение для изучения
 #### Acceptance Criteria
 
 1. WHEN a user clicks the add card button, THE App SHALL display a form for creating a new flashcard
-2. WHEN creating a flashcard, THE App SHALL require the user to enter a foreign word/phrase and its translation
-3. WHEN creating a flashcard, THE App SHALL allow the user to optionally add tags and specify the language
-4. WHEN a flashcard is created, THE App SHALL immediately add it to the study collection
-5. WHEN a flashcard is saved, THE App SHALL persist it to Storage
-6. WHEN a user selects an existing flashcard for editing, THE App SHALL display a form with the current flashcard data
-7. WHEN editing a flashcard, THE App SHALL allow the user to modify the word, translation, tags, and language
-8. WHEN an edited flashcard is saved, THE App SHALL update the flashcard in Storage while preserving its statistics
-9. THE App SHALL display an add card button on all screens
-10. IF there are no flashcards in Storage, THEN THE App SHALL show an empty card view with only create/import/settings actions available
+2. WHEN creating a flashcard, THE App SHALL require the user to enter a foreign word/phrase
+3. WHEN creating a flashcard, THE App SHALL allow the user to optionally enter translations in EN/UA/RU
+4. WHEN creating a flashcard, THE App SHALL allow the user to optionally add tags and specify the language
+5. WHEN a flashcard is created, THE App SHALL immediately add it to the study collection
+6. WHEN a flashcard is saved, THE App SHALL persist it to Storage
+7. WHEN a user selects an existing flashcard for editing, THE App SHALL display a form with the current flashcard data
+8. WHEN editing a flashcard, THE App SHALL allow the user to modify the word, translations (EN/UA/RU), tags, and language
+9. WHEN an edited flashcard is saved, THE App SHALL update the flashcard in Storage while preserving its statistics
+10. THE App SHALL display an add card button on all screens
+11. IF there are no flashcards in Storage, THEN THE App SHALL show an empty card view with only create/import/settings actions available
 
 ### Requirement 2: Локальное хранилище данных
 
@@ -43,7 +44,7 @@ Flashcard Learning App - это PWA приложение для изучения
 1. WHEN the App starts, THE App SHALL load all flashcards from Storage
 2. WHEN a flashcard is created or modified, THE App SHALL immediately persist changes to Storage
 3. WHEN the App is restarted, THE App SHALL restore all previously saved flashcards
-4. THE Storage SHALL maintain flashcard data including word, translation, tags, language, and statistics
+4. THE Storage SHALL maintain flashcard data including word, translations (EN/UA/RU), tags, language, and statistics
 
 ### Requirement 3: Резервное копирование и восстановление
 
@@ -65,12 +66,13 @@ Flashcard Learning App - это PWA приложение для изучения
 #### Acceptance Criteria
 
 1. WHEN a user uploads a CSV file, THE App SHALL parse the file and extract flashcard data
-2. WHEN parsing CSV, THE App SHALL validate that required fields (word and translation) are present
+2. WHEN parsing CSV, THE App SHALL validate that required fields (word) are present
 3. IF the CSV contains invalid data, THEN THE App SHALL display an error message with details
 4. WHEN CSV import succeeds, THE App SHALL add all imported flashcards to the collection
 5. WHEN CSV import completes, THE App SHALL persist imported flashcards to Storage
-6. THE App SHALL accept CSV files without headers containing exactly two fields per row: word/phrase and translation
-7. THE App SHALL use a single, consistent delimiter for CSV (comma)
+6. THE App SHALL accept CSV files without headers containing exactly four fields per row: word/phrase and translations EN/UA/RU
+7. THE App SHALL allow empty translation fields in CSV rows
+8. THE App SHALL use a single, consistent delimiter for CSV (comma)
 
 ### Requirement 5: Фильтрация по тегам
 
@@ -122,7 +124,8 @@ Flashcard Learning App - это PWA приложение для изучения
 4a. Swipe left SHALL map to "don't know"; swipe right SHALL map to "know"
 5. WHEN a user clicks left or right arrow buttons, THE App SHALL register the response as "don't know" or "know" respectively
 6. WHEN a user clicks "don't know" or "know" buttons, THE App SHALL register the corresponding response
-7. WHEN a response is registered, THE App SHALL flip the flashcard to show the translation
+7. WHEN a response is registered, THE App SHALL flip the flashcard to show the translation matching the current UI language
+8. IF the translation for the current UI language is empty, THEN THE App SHALL show an empty translation state without errors
 8. WHEN a response is registered, THE App SHALL update the flashcard statistics
 9. WHEN a flashcard interaction completes, THE App SHALL select and display the next flashcard
 
@@ -184,7 +187,8 @@ Flashcard Learning App - это PWA приложение для изучения
 
 #### Acceptance Criteria
 
-1. THE App SHALL define a flashcard schema including: id, word/phrase, translation, tags, language, stats (know/don't know), and timestamps
+1. THE App SHALL define a flashcard schema including: id, word/phrase, translations (EN/UA/RU), tags, language, stats (know/don't know), and timestamps
+2. Translations MAY be empty strings; word/phrase is always required
 2. THE App SHALL export backups as a JSON file
 3. THE backup JSON SHALL include a schema version
 4. THE App SHALL validate the backup schema version before restore
@@ -200,12 +204,35 @@ Flashcard Learning App - это PWA приложение для изучения
 3. The selection algorithm SHALL sample the next card proportionally to weights
 4. The algorithm SHALL be deterministic given the same random seed
 
+### Requirement 15: Адаптивный интерфейс
+
+**User Story:** As a user, I want the interface to adapt to my device and orientation, so that the app is comfortable on both desktop and mobile screens.
+
+#### Acceptance Criteria
+
+1. THE App SHALL provide a responsive layout for desktop (large screens, landscape) and mobile (small screens, portrait).
+2. THE App SHALL avoid horizontal scrolling on small screens.
+3. THE App SHALL keep primary actions (Add Card, Create/Import/Settings) easily reachable on mobile.
+4. THE App SHALL adjust spacing and layout at common breakpoints (e.g., <= 720px width).
+
+### Requirement 16: Отображение списка карточек
+
+**User Story:** As a user, I want to open and close the full cards list when needed, so that it does not clutter the study view.
+
+#### Acceptance Criteria
+
+1. THE App SHALL hide the Cards section by default.
+2. THE App SHALL provide an "All cards" button in the Settings section to show the Cards section.
+3. THE Cards section SHALL include a close button to hide the Cards section.
+4. The cards list SHALL be sorted alphabetically by the foreign word (case-insensitive).
+
 ## Decisions (Resolved Clarifications)
 
 - Storage: localStorage.
 - Backup format: JSON with schema version in the file; simple file extension.
-- Duplicate detection for merge: normalize case/whitespace; key is word+translation+language; tags ignored.
-- CSV import: no headers; two fields per row; comma delimiter.
+- Duplicate detection for merge: normalize case/whitespace; key is word+translations(EN/UA/RU)+language; tags ignored.
+- Translations are optional; empty translations are permitted.
+- CSV import: no headers; four fields per row (word + translations EN/UA/RU); comma delimiter.
 - Tag filtering: case-insensitive; require ALL selected tags.
 - Study algorithm: adaptive probability; optional setting to prioritize never-shown cards.
 - Swipe mapping: left = "don't know", right = "know".

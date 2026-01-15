@@ -35,12 +35,14 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
 
 - Screens:
   - Study screen (flashcard view, TTS toggle, know/don't know actions).
-  - Card editor (create/edit).
+  - Card editor (create/edit with EN/UA/RU translations).
   - Import/Backup/Restore.
   - Settings (language, TTS, optional "prioritize never shown").
 - Always-visible quick action: Add Card button.
 - Empty state: show blank card with only create/import/settings actions.
-- Input validation: required word and translation fields.
+- Input validation: required word field; translations (EN/UA/RU) are optional.
+- Responsive layout: single-column on mobile, multi-column on desktop; spacing and button sizing adapt to screen size.
+- Cards section: hidden by default; opened via "All cards" button in Settings; includes close button; list sorted by word.
 
 ### 2) State Module
 
@@ -57,12 +59,12 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
 ### 3) Domain Module
 
 - Flashcard model (schema and normalization):
-  - Normalizes tags and word/translation for comparisons.
+  - Normalizes tags, word, and translations for comparisons.
 - Adaptive scheduler:
   - Computes weights based on know/don't know counters.
   - Samples next card proportionally to weights.
 - Merge logic:
-  - Identifies duplicates using normalized word+translation+language.
+  - Identifies duplicates using normalized word+translations(EN/UA/RU)+language.
 
 ### 4) Persistence Module
 
@@ -83,7 +85,7 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
   - Merge or overwrite strategy.
   - Merge uses duplicate detection rules.
 - CSV:
-  - Comma-delimited, no headers, two fields per row (word, translation).
+  - Comma-delimited, no headers, four fields per row (word + translations EN/UA/RU).
   - Validates non-empty required fields.
 
 ### 6) i18n Module
@@ -113,7 +115,7 @@ This section defines concrete components per layer and their main interfaces (fu
 Components:
 
 - `StudyView` (card front/back, swipe area, action buttons, TTS toggle)
-- `CardForm` (create/edit)
+- `CardForm` (create/edit with EN/UA/RU translations)
 - `ImportExportView` (CSV import, backup export, restore dialog)
 - `SettingsView` (uiLanguage, ttsEnabled, prioritizeUnseen)
 - `TagFilterBar` (multi-select tag list)
@@ -148,7 +150,7 @@ Components:
 Interfaces:
 
 - `normalizeCard(card)` returns normalized shape for comparison.
-- `validateCardInput(word, translation)` returns validation errors.
+- `validateCardInput(word, translations)` returns validation errors (word required, translations optional).
 - `computeWeights(cards)` returns weights array.
 - `selectNextCard(cards, weights, rng)` returns card id.
 - `findDuplicates(existing, incoming)` returns duplicate map.
@@ -220,7 +222,10 @@ Interfaces:
 
 - `id`: string (unique)
 - `word`: string
-- `translation`: string
+- `translations`:
+  - `en`: string
+  - `ua`: string
+  - `ru`: string
 - `tags`: array of strings
 - `language`: string (TTS code, e.g., `en`, `de`, `es`, `fr`, `ua`, `ru`)
 - `stats`:
@@ -231,13 +236,14 @@ Interfaces:
 
 Constraints:
 
-- `word` and `translation` are required and non-empty after trimming.
+- `word` is required and non-empty after trimming.
+- `translations.en`/`translations.ua`/`translations.ru` may be empty strings.
 - `tags` may be empty; duplicates are removed during normalization.
 - `stats.know` and `stats.dontKnow` are integers >= 0.
 
 Normalization rules:
 
-- Word/translation: trim, collapse whitespace, lowercased for duplicate checks.
+- Word/translations: trim, collapse whitespace, lowercased for duplicate checks.
 - Tags: trim, lowercased for filtering; store original user casing optional.
 
 ### Settings Schema (v1)
@@ -267,10 +273,11 @@ Normalization rules:
 ## Correctness Properties
 
 - Storage consistency: after any mutation that persists successfully, in-memory state and localStorage are equivalent.
-- Card invariants: no flashcard has empty `word` or `translation`; stats are non-negative integers.
+- Card invariants: no flashcard has empty `word`; translations may be empty; stats are non-negative integers.
 - Filtering: when tags are selected, a card is included if it matches any selected tag (case-insensitive).
 - Scheduling: next-card selection uses only the filtered set; weights derive solely from stats and optional unseen boost.
-- Merge restore: duplicates are identified by normalized word+translation+language and are not duplicated in storage.
+- Merge restore: duplicates are identified by normalized word+translations(EN/UA/RU)+language and are not duplicated in storage.
+- Translation display: study view shows translation matching current UI language; empty translation is allowed and shown as empty state.
 - Offline-only: the app must not initiate network requests beyond local asset caching.
 - TTS compliance: when TTS is disabled or unavailable, no speech is produced and the UI remains usable.
 
@@ -300,7 +307,7 @@ Cards with more "don't know" yield larger weights. A minimum floor can be applie
 
 Duplicates are defined by normalized:
 
-- word + translation + language
+- word + translations(EN/UA/RU) + language
 
 Tags are not used for duplicate detection. On merge, existing cards keep their stats. For duplicates found in backup:
 
@@ -309,7 +316,8 @@ Tags are not used for duplicate detection. On merge, existing cards keep their s
 
 ## CSV Import
 
-- Each line has two fields: word, translation.
+- Each line has four fields: word, translation EN, translation UA, translation RU.
+- Translation fields may be empty; word is required.
 - Empty lines are ignored.
 - Invalid rows are collected and reported with line numbers.
 
@@ -322,7 +330,7 @@ Tags are not used for duplicate detection. On merge, existing cards keep their s
 - Study interaction:
   - Swipe left or click left/left button: don't know.
   - Swipe right or click right/right button: know.
-  - Card flips to show translation; stats updated; next card chosen.
+  - Card flips to show translation for the current UI language; stats updated; next card chosen.
 
 ## Offline and Security Considerations
 
@@ -330,6 +338,13 @@ Tags are not used for duplicate detection. On merge, existing cards keep their s
 - Service worker caches only app assets.
 - No analytics or external fonts.
 - TTS MUST use only OS/local voices (Web Speech API local voices); no online synthesis.
+
+## Responsive Layout
+
+- Mobile-first CSS with a single-column layout under ~720px width.
+- Desktop layout uses multi-column panels for Study/Cards/Settings.
+- Header stacks vertically on narrow screens; primary actions remain visible.
+- Buttons and form controls expand or stack on small screens to improve touch usability.
 
 ## Error Handling
 

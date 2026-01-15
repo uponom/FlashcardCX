@@ -1,0 +1,299 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", "Lucida Sans", Arial, sans-serif;
+  background: #f4f1ec;
+  color: #1d1b16;
+}
+
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app__title {
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.02em;
+}
+
+.app__action {
+  background: #1d1b16;
+  color: #f7f3ed;
+  border: 0;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.app__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.panel {
+  background: #fbf8f2;
+  border: 1px solid #e3ddd4;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 18px rgba(29, 27, 22, 0.08);
+}
+
+.panel__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.panel__content {
+  color: #5b564f;
+  margin: 0;
+}
+
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.inline-action {
+  display: flex;
+  justify-content: center;
+}
+
+.study-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.study-column .app__action {
+  width: 100%;
+  align-self: start;
+}
+
+.tag-filter {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tag-filter__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #d7d1c7;
+  background: #fffdf7;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tag-pill input {
+  margin: 0;
+}
+
+.settings-actions {
+  margin-top: 1rem;
+}
+
+.card-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  border: 1px solid #e3ddd4;
+  background: #fffdf7;
+}
+
+.card-list__meta {
+  display: block;
+  color: #6a645c;
+  font-size: 0.9rem;
+}
+
+.card-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field__label {
+  font-size: 0.9rem;
+  color: #6a645c;
+}
+
+.field input,
+.field select {
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid #d7d1c7;
+  font-size: 1rem;
+}
+
+.card-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.form-error {
+  margin: 0;
+  color: #8c2f2f;
+  min-height: 1.2rem;
+}
+
+.test-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.test-list__item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+.test-list__item.is-pass {
+  background: #e3f5e6;
+  color: #1e3b25;
+}
+
+.test-list__item.is-fail {
+  background: #f8e4e4;
+  color: #5a1f1f;
+}
+
+.app__footer {
+  color: #6a645c;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.empty-state__button {
+  border: 1px solid #1d1b16;
+  background: transparent;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+@media (min-width: 860px) {
+  .app__layout {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 1.25rem;
+  }
+
+  .app__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app__title {
+    font-size: 1.5rem;
+  }
+
+  .app__action {
+    width: 100%;
+    text-align: center;
+  }
+
+  .panel {
+    padding: 1.1rem;
+  }
+
+  .card-list__item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .card-form__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .card-form__actions .app__action,
+  .card-form__actions .empty-state__button {
+    width: 100%;
+  }
+
+  .empty-state__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .empty-state__button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .app {
+    padding: 1rem;
+  }
+
+  .app__layout {
+    gap: 1rem;
+  }
+}

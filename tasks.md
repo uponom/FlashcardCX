@@ -4,36 +4,43 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 1) Project Setup and Baseline
 
-1.1. [ ] Create minimal project structure (`index.html`, `styles.css`, `app.js`, `sw.js`, `manifest.json`) with vanilla JS and no external dependencies.
-1.2. [ ] Define asset loading order and ensure app starts without errors in the console.
-1.3. [ ] Test: Open the app in a browser, verify a blank page loads with no console errors.
+1.1. [x] Create minimal project structure (`index.html`, `styles.css`, `app.js`, `sw.js`, `manifest.json`) with vanilla JS and no external dependencies.
+1.2. [x] Define asset loading order and ensure app starts without errors in the console.
+1.3. [x] Test: Open the app in a browser, verify a blank page loads with no console errors.
 
 ## 2) Data Model and Storage
 
-2.1. [ ] Implement the Flashcard schema and Settings schema (per `design.md`).
-2.2. [ ] Implement localStorage adapter: load/save flashcards and settings.
-2.3. [ ] Add schema version handling for backup JSON.
-2.4. [ ] Test: Create a sample card in memory, persist it, reload the page, and verify it is restored.
+2.1. [x] Implement the Flashcard schema with translations (EN/UA/RU, optional) and Settings schema (per `design.md`).
+2.2. [x] Implement localStorage adapter updates for translations object.
+2.3. [x] Add schema version handling for backup JSON.
+2.4. [x] Add migration from legacy single-translation cards to translations object.
+2.5. [x] Test: Persist a card with translations (including empty), reload, and verify translations are restored (including migration).
 
 ## 3) State Management and Selectors
 
-3.1. [ ] Implement a simple store with state, actions, and selectors (no external libs).
-3.2. [ ] Add selectors for current card, filtered cards, and available tags.
-3.3. [ ] Implement `persistWarning` handling in state.
-3.4. [ ] Test: Dispatch actions in the console and confirm state transitions and selectors are correct.
+3.1. [x] Implement a simple store with state, actions, and selectors (no external libs).
+3.2. [x] Add selectors for current card, filtered cards, and available tags.
+3.3. [x] Implement `persistWarning` handling in state.
+3.4. [x] Test: Dispatch actions in the console and confirm state transitions and selectors are correct.
 
 ## 4) Base UI Shell
 
-4.1. [ ] Build the main layout with a persistent Add Card button and placeholders for Study, Card Form, Settings, Import/Export.
-4.2. [ ] Implement empty state (no cards) per requirements.
-4.3. [ ] Test: With empty storage, verify only create/import/settings actions are available.
+4.1. [x] Build the main layout with a persistent Add Card button and placeholders for Study, Card Form, Settings, Import/Export.
+4.2. [x] Implement empty state (no cards) per requirements.
+4.3. [x] Test: With empty storage, verify only create/import/settings actions are available.
+4.4. [x] Implement responsive layout for desktop (landscape) and mobile (portrait).
+4.5. [x] Test: Verify layout adapts at <= 720px width and avoids horizontal scroll.
+4.6. [x] Hide Cards section by default; add "All cards" button in Settings and a close button in Cards.
+4.7. [x] Test: Cards panel toggles open/close correctly.
 
 ## 5) Card CRUD (Create/Edit)
 
-5.1. [ ] Implement CardForm for create and edit; validate required fields.
-5.2. [ ] Wire CardForm to store and persistence; preserve stats on edit.
-5.3. [ ] Add UI for editing an existing card (entry point from study view or list).
-5.4. [ ] Test: Create a card, edit it, reload, and confirm stats remain unchanged.
+5.1. [x] Implement CardForm for create and edit with EN/UA/RU translations; validate required fields (word only).
+5.2. [x] Wire CardForm to store and persistence; preserve stats on edit.
+5.3. [x] Add UI for editing an existing card (entry point from study view or list).
+5.4. [x] Test: Create a card with translations (including empty), edit it, reload, and confirm stats remain unchanged.
+5.5. [x] Sort cards list alphabetically by foreign word.
+5.6. [x] Test: Cards list is sorted case-insensitively.
 
 ## 6) Tagging and Filtering
 
@@ -44,7 +51,7 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 7) Study Flow and Card Interaction
 
-7.1. [ ] Implement StudyView with card front/back states and flip animation.
+7.1. [ ] Implement StudyView with card front/back states, flip animation, and translation display based on UI language.
 7.2. [ ] Add buttons for "know" and "don't know".
 7.3. [ ] Implement swipe gestures (left = don't know, right = know).
 7.4. [ ] Update stats on actions and persist.
@@ -68,24 +75,24 @@ This checklist decomposes the application into sequential tasks. Each task has a
 ## 10) i18n (EN/UA/RU)
 
 10.1. [ ] Build dictionary tables and translation function.
-10.2. [ ] Wire UI to update labels when UI language changes.
+10.2. [ ] Wire UI to update labels and translation display when UI language changes.
 10.3. [ ] Persist `uiLanguage` in settings.
 10.4. [ ] Test: Switch UI language and verify all visible strings update.
 
 ## 11) Backup and Restore
 
-11.1. [ ] Implement JSON backup export with schema version.
+11.1. [ ] Implement JSON backup export with schema version (including translations object).
 11.2. [ ] Implement restore flow with validation and merge/overwrite selection.
-11.3. [ ] Implement duplicate detection by normalized word+translation+language.
+11.3. [ ] Implement duplicate detection by normalized word+translations(EN/UA/RU)+language.
 11.4. [ ] Merge behavior: keep existing stats, optionally union tags.
 11.5. [ ] Test: Export, clear storage, restore, and verify full data integrity; test merge vs overwrite.
 
 ## 12) CSV Import
 
-12.1. [ ] Implement CSV parser (comma-delimited, two fields per row, no headers).
+12.1. [ ] Implement CSV parser (comma-delimited, four fields per row, no headers) for word + translations EN/UA/RU (translations may be empty).
 12.2. [ ] Validate required fields; collect errors with line numbers.
 12.3. [ ] Allow partial import or cancel when errors are present.
-12.4. [ ] Test: Import valid CSV and a CSV with errors; confirm proper messaging and imports.
+12.4. [ ] Test: Import valid CSV and a CSV with errors; confirm proper messaging and translations parsing (including empty fields).
 
 ## 13) PWA and Offline
 
