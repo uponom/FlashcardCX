@@ -56,6 +56,8 @@ This checklist decomposes the application into sequential tasks. Each task has a
 7.3. [x] Implement swipe gestures (left = don't know, right = know).
 7.4. [x] Update stats on actions and persist.
 7.5. [x] Test: Use buttons and swipes, confirm stats increment and next card loads.
+7.6. [ ] Store `RecentKnows`/`RecentDontKnows` per card (sum <= 20) and use it for progress bar.
+7.7. [ ] Test: Progress bar reflects recent counters and hides when both are zero.
 
 ## 8) Adaptive Scheduling
 
@@ -78,6 +80,8 @@ This checklist decomposes the application into sequential tasks. Each task has a
 10.2. [ ] Wire UI to update labels and translation display when UI language changes.
 10.3. [ ] Persist `uiLanguage` in settings.
 10.4. [ ] Test: Switch UI language and verify all visible strings update.
+10.5. [ ] Add light/dark theme toggle in Settings and persist `theme`.
+10.6. [ ] Test: Theme toggle switches and persists across reloads.
 
 ## 11) Backup and Restore
 

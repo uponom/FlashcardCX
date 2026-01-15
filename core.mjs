@@ -38,7 +38,7 @@ const createFlashcard = ({ word, translations, translation, tags = [], language 
     translations: normalizedTranslations,
     tags,
     language,
-    stats: { know: 0, dontKnow: 0 },
+    stats: { know: 0, dontKnow: 0, RecentKnows: 0, RecentDontKnows: 0 },
     createdAt: now,
     updatedAt: now,
   };
@@ -75,6 +75,36 @@ const selectors = {
   getCurrentCard(state) {
     return state.flashcards.find((card) => card.id === state.currentCardId) || null;
   },
+};
+
+const computeWeights = (cards, prioritizeUnseen) => {
+  return cards.map((card) => {
+    const know = Number(card.stats?.RecentKnows || 0);
+    const dontKnow = Number(card.stats?.RecentDontKnows || 0);
+    const ratio = (know + 1) / (dontKnow + 1);
+    let weight = 1 / ratio;
+    if (prioritizeUnseen && know + dontKnow === 0) {
+      weight *= 2;
+    }
+    return Math.max(weight, 0.01);
+  });
+};
+
+const selectWeighted = (cards, weights, rng = Math.random) => {
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return cards[0] || null;
+  let threshold = rng() * total;
+  for (let i = 0; i < cards.length; i += 1) {
+    threshold -= weights[i];
+    if (threshold <= 0) return cards[i];
+  }
+  return cards[cards.length - 1] || null;
+};
+
+const pickNextCard = (cards, settings, rng = Math.random) => {
+  if (!cards.length) return null;
+  const weights = computeWeights(cards, settings.prioritizeUnseen);
+  return selectWeighted(cards, weights, rng);
 };
 
 const createStorageAdapter = (storageLike, defaultSettings, storageKeys) => ({
@@ -119,6 +149,19 @@ const migrateFlashcards = (cards) => {
       delete next.translation;
       didMigrate = true;
     }
+    if (!next.stats || typeof next.stats !== "object") {
+      next.stats = { know: 0, dontKnow: 0, RecentKnows: 0, RecentDontKnows: 0 };
+      didMigrate = true;
+    } else {
+      if (next.stats.RecentKnows === undefined) {
+        next.stats.RecentKnows = 0;
+        didMigrate = true;
+      }
+      if (next.stats.RecentDontKnows === undefined) {
+        next.stats.RecentDontKnows = 0;
+        didMigrate = true;
+      }
+    }
     return next;
   });
 
@@ -132,4 +175,6 @@ export {
   migrateFlashcards,
   selectors,
   createStorageAdapter,
+  computeWeights,
+  pickNextCard,
 };

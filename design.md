@@ -43,6 +43,7 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
 - Input validation: required word field; translations (EN/UA/RU) are optional.
 - Responsive layout: single-column on mobile, multi-column on desktop; spacing and button sizing adapt to screen size.
 - Cards section: hidden by default; opened via "All cards" button in Settings; includes close button; list sorted by word.
+- Theme toggle: light/dark switch stored in settings and applied via CSS variables.
 
 ### 2) State Module
 
@@ -60,6 +61,7 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
 
 - Flashcard model (schema and normalization):
   - Normalizes tags, word, and translations for comparisons.
+  - Stores two rolling counters (`RecentKnows`, `RecentDontKnows`) capped at 20 total.
 - Adaptive scheduler:
   - Computes weights based on know/don't know counters.
   - Samples next card proportionally to weights.
@@ -231,6 +233,8 @@ Interfaces:
 - `stats`:
   - `know`: number
   - `dontKnow`: number
+  - `RecentKnows`: number
+  - `RecentDontKnows`: number
 - `createdAt`: ISO string
 - `updatedAt`: ISO string
 
@@ -251,6 +255,7 @@ Normalization rules:
 - `uiLanguage`: `en` | `ua` | `ru`
 - `ttsEnabled`: boolean
 - `prioritizeUnseen`: boolean
+- `theme`: `light` | `dark`
 
 ### Runtime State (in-memory)
 
@@ -273,11 +278,12 @@ Normalization rules:
 ## Correctness Properties
 
 - Storage consistency: after any mutation that persists successfully, in-memory state and localStorage are equivalent.
-- Card invariants: no flashcard has empty `word`; translations may be empty; stats are non-negative integers.
+- Card invariants: no flashcard has empty `word`; translations may be empty; stats are non-negative integers; `RecentKnows + RecentDontKnows <= 20`.
 - Filtering: when tags are selected, a card is included if it matches any selected tag (case-insensitive).
 - Scheduling: next-card selection uses only the filtered set; weights derive solely from stats and optional unseen boost.
 - Merge restore: duplicates are identified by normalized word+translations(EN/UA/RU)+language and are not duplicated in storage.
 - Translation display: study view shows translation matching current UI language; empty translation is allowed and shown as empty state.
+- Progress bar uses only `RecentKnows`/`RecentDontKnows` (capped to 20 total).
 - Offline-only: the app must not initiate network requests beyond local asset caching.
 - TTS compliance: when TTS is disabled or unavailable, no speech is produced and the UI remains usable.
 

@@ -226,6 +226,33 @@ Flashcard Learning App - это PWA приложение для изучения
 3. THE Cards section SHALL include a close button to hide the Cards section.
 4. The cards list SHALL be sorted alphabetically by the foreign word (case-insensitive).
 
+### Requirement 17: Светлая и темная темы
+
+**User Story:** As a user, I want to switch between light and dark themes, so that the interface is comfortable in different lighting.
+
+#### Acceptance Criteria
+
+1. THE App SHALL provide a theme toggle in the Settings section.
+2. The toggle SHALL switch between light and dark themes.
+3. The toggle button SHALL display an emoji representing the current theme.
+4. THE App SHALL persist the selected theme in Settings.
+
+### Requirement 18: Прогресс по последним ответам
+
+**User Story:** As a user, I want the learning progress to reflect my recent performance, so that the progress bar is meaningful.
+
+#### Acceptance Criteria
+
+1. THE App SHALL store two counters per card: `RecentKnows` and `RecentDontKnows`.
+2. The sum `RecentKnows + RecentDontKnows` SHALL NOT exceed 20.
+3. The progress bar SHALL be calculated from the ratio of `RecentKnows`/`RecentDontKnows`.
+4. IF `RecentKnows + RecentDontKnows` is 0, THEN the progress bar SHALL not be shown.
+5. On "know" answer:
+   5.1 IF the sum is < 20, THEN increment `RecentKnows` by 1.
+   5.2 IF the sum is 20 and `RecentKnows` < 20, THEN increment `RecentKnows` by 1 and decrement `RecentDontKnows` by 1.
+   5.3 IF the sum is 20 and `RecentKnows` = 20, THEN if `RecentDontKnows` > 0, decrement `RecentDontKnows` by 1.
+6. On "don't know" answer: the same rules apply with `RecentDontKnows` as the incremented field and `RecentKnows` as the opposite field.
+
 ## Decisions (Resolved Clarifications)
 
 - Storage: localStorage.

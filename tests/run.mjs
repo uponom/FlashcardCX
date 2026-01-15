@@ -5,6 +5,8 @@ import {
   migrateFlashcards,
   selectors,
   createStorageAdapter,
+  computeWeights,
+  pickNextCard,
 } from "../core.mjs";
 
 const results = [];
@@ -43,7 +45,13 @@ const testCard = createFlashcard({
 });
 
 assert("createFlashcard sets required fields", Boolean(testCard.id && testCard.word));
-assert("createFlashcard initializes stats", testCard.stats.know === 0 && testCard.stats.dontKnow === 0);
+assert(
+  "createFlashcard initializes stats",
+  testCard.stats.know === 0 &&
+    testCard.stats.dontKnow === 0 &&
+    testCard.stats.RecentKnows === 0 &&
+    testCard.stats.RecentDontKnows === 0
+);
 assert("createFlashcard sets language", testCard.language === "es");
 assert(
   "createFlashcard stores translations",
@@ -92,7 +100,24 @@ const legacyCards = [
   { id: "2", word: "ciao", translations: { en: "hi", ua: "", ru: "" }, tags: [], language: "it", stats: { know: 0, dontKnow: 0 } },
 ];
 const migrated = migrateFlashcards(legacyCards);
-assert("migrateFlashcards adds translations and removes legacy field", migrated.cards[0].translations.en === "hello" && !("translation" in migrated.cards[0]));
+assert(
+  "migrateFlashcards adds translations and removes legacy field",
+  migrated.cards[0].translations.en === "hello" && !("translation" in migrated.cards[0])
+);
+assert(
+  "migrateFlashcards adds recent counters",
+  migrated.cards[0].stats.RecentKnows === 0 && migrated.cards[0].stats.RecentDontKnows === 0
+);
+
+const weightCards = [
+  { stats: { RecentKnows: 0, RecentDontKnows: 3 } },
+  { stats: { RecentKnows: 5, RecentDontKnows: 0 } },
+];
+const weights = computeWeights(weightCards, false);
+assert("computeWeights prioritizes more dontKnow", weights[0] > weights[1]);
+
+const picked = pickNextCard([{ id: "a", stats: { know: 0, dontKnow: 0 } }], { prioritizeUnseen: true }, () => 0);
+assert("pickNextCard returns a card when available", picked && picked.id === "a");
 
 const failed = results.filter((result) => !result.passed);
 if (failed.length) {

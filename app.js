@@ -5,6 +5,7 @@ import {
   migrateFlashcards,
   selectors,
   createStorageAdapter,
+  pickNextCard,
 } from "./core.mjs";
 
 (() => {
@@ -19,6 +20,7 @@ import {
     uiLanguage: "en",
     ttsEnabled: true,
     prioritizeUnseen: false,
+    theme: "light",
   };
 
   const storage = createStorageAdapter(localStorage, defaultSettings, STORAGE_KEYS);
@@ -149,7 +151,7 @@ import {
     flashcards: initialFlashcards,
     settings: initialSettings,
     selectedTags: [],
-    currentCardId: initialFlashcards[0]?.id || null,
+    currentCardId: null,
     persistWarning: null,
   });
 
@@ -229,7 +231,7 @@ import {
     return app.dataset.showCards === "true";
   };
 
-  const renderLayout = (state, studyMarkup) => `
+  const renderLayout = (state, studyMarkup, studyStatsMarkup) => `
     <header class="app__header">
       <h1 class="app__title">Flashcard Learning App</h1>
     </header>
@@ -237,16 +239,18 @@ import {
       ${state.flashcards.length === 0 ? renderEmptyState() : `
         <div class="study-column">
           <section class="panel">
-            <h2 class="panel__title">Study</h2>
+            ${studyMarkup}
             <div class="tag-filter">
               <span class="panel__content">Filter by tags:</span>
               <div class="tag-filter__list"></div>
             </div>
-            ${studyMarkup}
+            ${studyStatsMarkup}
           </section>
-          <div class="inline-action">
-            <button class="app__action" type="button" data-action="open-create">Add Card</button>
-          </div>
+          ${shouldShowForm(state) ? "" : `
+            <div class="inline-action">
+              <button class="app__action" type="button" data-action="open-create">Add Card</button>
+            </div>
+          `}
         </div>
         ${shouldShowCards() ? `
           <section class="panel" data-view="card-list">
@@ -307,6 +311,9 @@ import {
       <p class="panel__content">Settings placeholder.</p>
       <div class="settings-actions">
         <button class="empty-state__button" type="button" data-action="open-cards">All cards</button>
+        <button class="empty-state__button" type="button" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme">
+          ${state.settings.theme === "dark" ? "🌙" : "☀️"}
+        </button>
       </div>
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
     </section>
@@ -326,6 +333,28 @@ import {
   let pendingNextId = null;
   let swipeStart = null;
 
+  const transitionToNext = (nextId) => {
+    if (!nextId) return;
+    if (advanceTimer) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
+    const cardInner = app?.querySelector(".study-card__inner");
+    const proceed = () => {
+      app.dataset.studyFlip = "false";
+      app.dataset.flipDirection = "";
+      store.dispatch({ type: "study/setCurrent", payload: nextId });
+      pendingNextId = null;
+      renderApp();
+    };
+    if (cardInner) {
+      cardInner.classList.add("is-exiting");
+      setTimeout(proceed, 450);
+    } else {
+      proceed();
+    }
+  };
+
   const buildStudyMarkup = (state, filteredCards) => {
     if (!filteredCards.length) {
       return `<p class="panel__content">No cards to study.</p>`;
@@ -333,8 +362,6 @@ import {
     const current = filteredCards.find((card) => card.id === state.currentCardId) || filteredCards[0];
     const translations = normalizeTranslations(current.translations);
     const translation = translations[state.settings.uiLanguage] || "";
-    const isFlipped = app && app.dataset.studyFlip === "true";
-
     return `
       <div class="study-controls" data-action="study-card">
         <button
@@ -344,7 +371,7 @@ import {
           aria-label="Don't know"
           title="Don't know"
         >❌</button>
-        <div class="study-card ${isFlipped ? "is-flipped" : ""}" data-card-id="${current.id}">
+        <div class="study-card" data-card-id="${current.id}">
           <div class="study-card__inner">
             <div class="study-card__face study-card__front">
               <p class="study-card__word">${current.word}</p>
@@ -353,6 +380,20 @@ import {
               <p class="study-card__translation ${translation ? "" : "is-empty"}">${translation || "—"}</p>
             </div>
           </div>
+          ${(() => {
+            const know = Number(current.stats?.RecentKnows || 0);
+            const dontKnow = Number(current.stats?.RecentDontKnows || 0);
+            const total = know + dontKnow;
+            if (!total) return "";
+            const knowPct = Math.round((know / total) * 100);
+            const dontPct = 100 - knowPct;
+            return `
+              <div class="study-progress" role="img" aria-label="Know ${know}, Don't know ${dontKnow}">
+                <div class="study-progress__dont" style="width: ${dontPct}%"></div>
+                <div class="study-progress__know" style="width: ${knowPct}%"></div>
+              </div>
+            `;
+          })()}
         </div>
         <button
           class="study-action study-action--right"
@@ -371,14 +412,36 @@ import {
     const filteredCards = selectors.getFilteredCards(state);
     if (
       filteredCards.length &&
-      !filteredCards.some((card) => card.id === state.currentCardId)
+      (!state.currentCardId ||
+        !filteredCards.some((card) => card.id === state.currentCardId))
     ) {
-      store.dispatch({ type: "study/setCurrent", payload: filteredCards[0].id });
+      const picked = pickNextCard(filteredCards, state.settings);
+      store.dispatch({ type: "study/setCurrent", payload: picked?.id || filteredCards[0].id });
       return;
     }
 
     const studyMarkup = buildStudyMarkup(state, filteredCards);
-    app.innerHTML = renderLayout(state, studyMarkup);
+    const studyStatsMarkup = (() => {
+      if (!filteredCards.length) return "";
+      const current = filteredCards.find((card) => card.id === state.currentCardId) || filteredCards[0];
+      const stats = current.stats || {};
+      const totalKnow = Number(stats.know || 0);
+      const totalDont = Number(stats.dontKnow || 0);
+      const recentKnow = Number(stats.RecentKnows || 0);
+      const recentDont = Number(stats.RecentDontKnows || 0);
+      return `
+        <p class="study-stats">
+          Total: ✅ ${totalKnow} / ❌ ${totalDont} · Recent20: ✅ ${recentKnow} / ❌ ${recentDont}
+        </p>
+      `;
+    })();
+    app.innerHTML = renderLayout(state, studyMarkup, studyStatsMarkup);
+    document.body.dataset.theme = state.settings.theme || "light";
+    if (app.dataset.studyFlip === "true") {
+      app.classList.add("is-answering");
+    } else {
+      app.classList.remove("is-answering");
+    }
     if (app.dataset.activeCardId !== undefined && app.dataset.showForm === "true") {
       const activeId = app.dataset.activeCardId || "";
       const activeCard = state.flashcards.find((card) => card.id === activeId);
@@ -418,9 +481,23 @@ import {
             .map(
               (card) => `
               <article class="card-list__item">
-                <div>
+                <div class="card-list__info">
                   <strong>${card.word}</strong>
                   <span class="card-list__meta">${normalizeTranslations(card.translations)[settings.uiLanguage] || "—"}</span>
+                  ${(() => {
+                    const know = Number(card.stats?.RecentKnows || 0);
+                    const dontKnow = Number(card.stats?.RecentDontKnows || 0);
+                    const total = know + dontKnow;
+                    if (!total) return "";
+                    const knowPct = Math.round((know / total) * 100);
+                    const dontPct = 100 - knowPct;
+                    return `
+                      <div class="study-progress card-list__progress" role="img" aria-label="Know ${know}, Don't know ${dontKnow}">
+                        <div class="study-progress__dont" style="width: ${dontPct}%"></div>
+                        <div class="study-progress__know" style="width: ${knowPct}%"></div>
+                      </div>
+                    `;
+                  })()}
                 </div>
                 <div class="card-list__actions">
                   <button type="button" class="empty-state__button" data-action="edit-card" data-id="${card.id}" title="Edit" aria-label="Edit">
@@ -436,10 +513,18 @@ import {
             .join("")
         : `<p class="panel__content">No cards yet.</p>`;
     }
-  };
 
-  renderApp();
-  store.subscribe(renderApp);
+    if (app.dataset.studyFlip === "true") {
+      const direction = app.dataset.flipDirection || "right";
+      requestAnimationFrame(() => {
+        const cardEl = app.querySelector(".study-card");
+        if (cardEl) {
+          cardEl.classList.add("is-flipped");
+          cardEl.classList.add(`is-flipped-${direction}`);
+        }
+      });
+    }
+  };
 
   if (app && app.dataset.showForm === undefined) {
     app.dataset.showForm = store.getState().flashcards.length === 0 ? "true" : "false";
@@ -447,6 +532,9 @@ import {
   if (app && app.dataset.showCards === undefined) {
     app.dataset.showCards = "false";
   }
+
+  store.subscribe(renderApp);
+  renderApp();
 
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("test") === "1") {
@@ -523,35 +611,72 @@ import {
         renderApp();
       }
 
+      if (target.dataset.action === "toggle-theme") {
+        const nextTheme = store.getState().settings.theme === "dark" ? "light" : "dark";
+        store.dispatch({ type: "settings/set", payload: { theme: nextTheme } });
+        persistSettings(store.getState().settings);
+        renderApp();
+      }
+
       if (target.dataset.action === "answer-know" || target.dataset.action === "answer-dont-know") {
         const currentState = store.getState();
         const filtered = selectors.getFilteredCards(currentState);
         if (!filtered.length) return;
         const current = filtered.find((card) => card.id === currentState.currentCardId) || filtered[0];
         const deltaKey = target.dataset.action === "answer-know" ? "know" : "dontKnow";
+        const prevStats = current.stats || {};
+        const recentKnow = Number(prevStats.RecentKnows || 0);
+        const recentDont = Number(prevStats.RecentDontKnows || 0);
+        const recentTotal = recentKnow + recentDont;
+        const updateRecent = (isKnow) => {
+          let nextKnow = recentKnow;
+          let nextDont = recentDont;
+          if (recentTotal < 20) {
+            if (isKnow) nextKnow += 1;
+            else nextDont += 1;
+          } else {
+            if (isKnow) {
+              if (nextKnow < 20) {
+                nextKnow += 1;
+                if (nextDont > 0) nextDont -= 1;
+              } else if (nextDont > 0) {
+                nextDont -= 1;
+              }
+            } else {
+              if (nextDont < 20) {
+                nextDont += 1;
+                if (nextKnow > 0) nextKnow -= 1;
+              } else if (nextKnow > 0) {
+                nextKnow -= 1;
+              }
+            }
+          }
+          return { nextKnow, nextDont };
+        };
+        const isKnow = deltaKey === "know";
+        const recentUpdate = updateRecent(isKnow);
         const updated = {
           ...current,
           stats: {
-            ...current.stats,
-            [deltaKey]: (current.stats?.[deltaKey] || 0) + 1,
+            ...prevStats,
+            [deltaKey]: (prevStats?.[deltaKey] || 0) + 1,
+            RecentKnows: recentUpdate.nextKnow,
+            RecentDontKnows: recentUpdate.nextDont,
           },
           updatedAt: new Date().toISOString(),
         };
         store.dispatch({ type: "flashcards/update", payload: updated });
         persistFlashcards(store.getState().flashcards);
         app.dataset.studyFlip = "true";
+        app.dataset.flipDirection = deltaKey === "know" ? "right" : "left";
         renderApp();
 
         if (advanceTimer) clearTimeout(advanceTimer);
-        const currentIndex = filtered.findIndex((card) => card.id === updated.id);
-        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % filtered.length;
-        const nextId = filtered[nextIndex]?.id || updated.id;
+        const nextCard = pickNextCard(filtered, currentState.settings);
+        const nextId = nextCard?.id || updated.id;
         pendingNextId = nextId;
         advanceTimer = setTimeout(() => {
-          app.dataset.studyFlip = "false";
-          store.dispatch({ type: "study/setCurrent", payload: pendingNextId || nextId });
-          pendingNextId = null;
-          renderApp();
+          transitionToNext(pendingNextId || nextId);
         }, 20000);
       }
       if (target.dataset.action === "delete-card") {
@@ -628,11 +753,7 @@ import {
       if (!card) return;
       if (!app.dataset.studyFlip || app.dataset.studyFlip !== "true") return;
       if (!pendingNextId) return;
-      if (advanceTimer) clearTimeout(advanceTimer);
-      app.dataset.studyFlip = "false";
-      store.dispatch({ type: "study/setCurrent", payload: pendingNextId });
-      pendingNextId = null;
-      renderApp();
+      transitionToNext(pendingNextId);
     });
 
     app.addEventListener("submit", (event) => {
