@@ -229,7 +229,7 @@ import {
     return app.dataset.showCards === "true";
   };
 
-  const renderLayout = (state) => `
+  const renderLayout = (state, studyMarkup) => `
     <header class="app__header">
       <h1 class="app__title">Flashcard Learning App</h1>
     </header>
@@ -242,7 +242,7 @@ import {
               <span class="panel__content">Filter by tags:</span>
               <div class="tag-filter__list"></div>
             </div>
-            <p class="panel__content">Study view placeholder.</p>
+            ${studyMarkup}
           </section>
           <div class="inline-action">
             <button class="app__action" type="button" data-action="open-create">Add Card</button>
@@ -257,13 +257,6 @@ import {
             <div class="card-list"></div>
           </section>
         ` : ""}
-        <section class="panel">
-          <h2 class="panel__title">Settings</h2>
-          <p class="panel__content">Settings placeholder.</p>
-          <div class="settings-actions">
-            <button class="empty-state__button" type="button" data-action="open-cards">All cards</button>
-          </div>
-        </section>
       `}
     </div>
     ${shouldShowForm(state) ? `
@@ -309,15 +302,86 @@ import {
         </form>
       </section>
     ` : ""}
-    <footer class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</footer>
+    <section class="panel">
+      <h2 class="panel__title">Settings</h2>
+      <p class="panel__content">Settings placeholder.</p>
+      <div class="settings-actions">
+        <button class="empty-state__button" type="button" data-action="open-cards">All cards</button>
+      </div>
+      <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
+    </section>
+    <dialog class="modal" data-modal="confirm-delete">
+      <div class="modal__content">
+        <h3 class="panel__title">Delete card?</h3>
+        <p class="panel__content">This action cannot be undone.</p>
+        <div class="modal__actions">
+          <button type="button" class="empty-state__button" data-action="confirm-cancel" autofocus>Cancel</button>
+          <button type="button" class="app__action" data-action="confirm-delete">Delete</button>
+        </div>
+      </div>
+    </dialog>
   `;
+
+  let advanceTimer = null;
+  let pendingNextId = null;
+  let swipeStart = null;
+
+  const buildStudyMarkup = (state, filteredCards) => {
+    if (!filteredCards.length) {
+      return `<p class="panel__content">No cards to study.</p>`;
+    }
+    const current = filteredCards.find((card) => card.id === state.currentCardId) || filteredCards[0];
+    const translations = normalizeTranslations(current.translations);
+    const translation = translations[state.settings.uiLanguage] || "";
+    const isFlipped = app && app.dataset.studyFlip === "true";
+
+    return `
+      <div class="study-controls" data-action="study-card">
+        <button
+          class="study-action study-action--left"
+          type="button"
+          data-action="answer-dont-know"
+          aria-label="Don't know"
+          title="Don't know"
+        >❌</button>
+        <div class="study-card ${isFlipped ? "is-flipped" : ""}" data-card-id="${current.id}">
+          <div class="study-card__inner">
+            <div class="study-card__face study-card__front">
+              <p class="study-card__word">${current.word}</p>
+            </div>
+            <div class="study-card__face study-card__back">
+              <p class="study-card__translation ${translation ? "" : "is-empty"}">${translation || "—"}</p>
+            </div>
+          </div>
+        </div>
+        <button
+          class="study-action study-action--right"
+          type="button"
+          data-action="answer-know"
+          aria-label="Know"
+          title="Know"
+        >✅</button>
+      </div>
+    `;
+  };
 
   const renderApp = () => {
     if (!app) return;
-    app.innerHTML = renderLayout(store.getState());
+    const state = store.getState();
+    const filteredCards = selectors.getFilteredCards(state);
+    if (
+      filteredCards.length &&
+      !filteredCards.some((card) => card.id === state.currentCardId)
+    ) {
+      store.dispatch({ type: "study/setCurrent", payload: filteredCards[0].id });
+      return;
+    }
+
+    const studyMarkup = buildStudyMarkup(state, filteredCards);
+    app.innerHTML = renderLayout(state, studyMarkup);
     if (app.dataset.activeCardId !== undefined && app.dataset.showForm === "true") {
       const activeId = app.dataset.activeCardId || "";
-      const activeCard = store.getState().flashcards.find((card) => card.id === activeId);
+      const activeCard = state.flashcards.find((card) => card.id === activeId);
       if (activeId && activeCard) {
         openCardForm(activeCard);
       } else {
@@ -327,8 +391,8 @@ import {
 
     const filterList = app.querySelector(".tag-filter__list");
     if (filterList) {
-      const tags = selectors.getAvailableTags(store.getState());
-      const selected = new Set(store.getState().selectedTags);
+      const tags = selectors.getAvailableTags(state);
+      const selected = new Set(state.selectedTags);
       filterList.innerHTML = tags.length
         ? tags
             .map(
@@ -345,7 +409,7 @@ import {
 
     const list = app.querySelector("[data-view='card-list'] .card-list");
     if (list) {
-      const { flashcards, settings } = store.getState();
+      const { flashcards, settings } = state;
       const sorted = [...flashcards].sort((a, b) =>
         String(a.word || "").localeCompare(String(b.word || ""), undefined, { sensitivity: "base" })
       );
@@ -358,9 +422,14 @@ import {
                   <strong>${card.word}</strong>
                   <span class="card-list__meta">${normalizeTranslations(card.translations)[settings.uiLanguage] || "—"}</span>
                 </div>
-                <button type="button" class="empty-state__button" data-action="edit-card" data-id="${card.id}">
-                  Edit
-                </button>
+                <div class="card-list__actions">
+                  <button type="button" class="empty-state__button" data-action="edit-card" data-id="${card.id}" title="Edit" aria-label="Edit">
+                    ✏️
+                  </button>
+                  <button type="button" class="empty-state__button" data-action="delete-card" data-id="${card.id}" title="Delete" aria-label="Delete">
+                    🗑️
+                  </button>
+                </div>
               </article>
             `
             )
@@ -409,6 +478,15 @@ import {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
 
+      if (target.matches("[data-modal='confirm-delete']")) {
+        const dialog = target;
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
+          app.dataset.pendingDeleteId = "";
+        }
+        return;
+      }
+
       if (target.dataset.action === "open-create") {
         app.dataset.showForm = "true";
         app.dataset.activeCardId = "";
@@ -444,6 +522,70 @@ import {
         app.dataset.showCards = "false";
         renderApp();
       }
+
+      if (target.dataset.action === "answer-know" || target.dataset.action === "answer-dont-know") {
+        const currentState = store.getState();
+        const filtered = selectors.getFilteredCards(currentState);
+        if (!filtered.length) return;
+        const current = filtered.find((card) => card.id === currentState.currentCardId) || filtered[0];
+        const deltaKey = target.dataset.action === "answer-know" ? "know" : "dontKnow";
+        const updated = {
+          ...current,
+          stats: {
+            ...current.stats,
+            [deltaKey]: (current.stats?.[deltaKey] || 0) + 1,
+          },
+          updatedAt: new Date().toISOString(),
+        };
+        store.dispatch({ type: "flashcards/update", payload: updated });
+        persistFlashcards(store.getState().flashcards);
+        app.dataset.studyFlip = "true";
+        renderApp();
+
+        if (advanceTimer) clearTimeout(advanceTimer);
+        const currentIndex = filtered.findIndex((card) => card.id === updated.id);
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % filtered.length;
+        const nextId = filtered[nextIndex]?.id || updated.id;
+        pendingNextId = nextId;
+        advanceTimer = setTimeout(() => {
+          app.dataset.studyFlip = "false";
+          store.dispatch({ type: "study/setCurrent", payload: pendingNextId || nextId });
+          pendingNextId = null;
+          renderApp();
+        }, 20000);
+      }
+      if (target.dataset.action === "delete-card") {
+        const id = target.dataset.id;
+        const dialog = app.querySelector("[data-modal='confirm-delete']");
+        if (dialog instanceof HTMLDialogElement) {
+          app.dataset.pendingDeleteId = id || "";
+          dialog.showModal();
+        }
+      }
+
+      if (target.dataset.action === "confirm-delete") {
+        const id = app.dataset.pendingDeleteId || "";
+        if (!id) return;
+        const updatedCards = store.getState().flashcards.filter((card) => card.id !== id);
+        store.dispatch({ type: "flashcards/set", payload: updatedCards });
+        const nextId = updatedCards[0]?.id || null;
+        store.dispatch({ type: "study/setCurrent", payload: nextId });
+        persistFlashcards(updatedCards);
+        app.dataset.pendingDeleteId = "";
+        const dialog = app.querySelector("[data-modal='confirm-delete']");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
+        }
+        renderApp();
+      }
+
+      if (target.dataset.action === "confirm-cancel") {
+        app.dataset.pendingDeleteId = "";
+        const dialog = app.querySelector("[data-modal='confirm-delete']");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
+        }
+      }
     });
 
     app.addEventListener("change", (event) => {
@@ -453,6 +595,44 @@ import {
       const checkboxes = Array.from(app.querySelectorAll(".tag-filter__list input[type='checkbox']"));
       const selectedTags = checkboxes.filter((box) => box.checked).map((box) => box.value);
       store.dispatch({ type: "filters/setTags", payload: selectedTags });
+    });
+
+    app.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.closest(".study-card")) return;
+      swipeStart = { x: event.clientX, y: event.clientY };
+    });
+
+    app.addEventListener("pointerup", (event) => {
+      if (!swipeStart) return;
+      const deltaX = event.clientX - swipeStart.x;
+      const deltaY = event.clientY - swipeStart.y;
+      swipeStart = null;
+      if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+      const action = deltaX < 0 ? "answer-dont-know" : "answer-know";
+      const button = app.querySelector(`[data-action='${action}']`);
+      if (button instanceof HTMLElement) {
+        button.click();
+      }
+    });
+
+    app.addEventListener("pointercancel", () => {
+      swipeStart = null;
+    });
+
+    app.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const card = target.closest(".study-card");
+      if (!card) return;
+      if (!app.dataset.studyFlip || app.dataset.studyFlip !== "true") return;
+      if (!pendingNextId) return;
+      if (advanceTimer) clearTimeout(advanceTimer);
+      app.dataset.studyFlip = "false";
+      store.dispatch({ type: "study/setCurrent", payload: pendingNextId });
+      pendingNextId = null;
+      renderApp();
     });
 
     app.addEventListener("submit", (event) => {

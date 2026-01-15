@@ -44,18 +44,18 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 6) Tagging and Filtering
 
-6.1. [ ] Implement tag entry in CardForm; normalize tags (trim, lowercase for matching).
-6.2. [ ] Build TagFilterBar and integrate with selectors.
-6.3. [ ] Apply filter rule: match ANY selected tag (case-insensitive).
-6.4. [ ] Test: Create multiple cards with tags and confirm filtering matches any selected tag.
+6.1. [x] Implement tag entry in CardForm; normalize tags (trim, lowercase for matching).
+6.2. [x] Build TagFilterBar and integrate with selectors.
+6.3. [x] Apply filter rule: match ANY selected tag (case-insensitive).
+6.4. [x] Test: Create multiple cards with tags and confirm filtering matches any selected tag.
 
 ## 7) Study Flow and Card Interaction
 
-7.1. [ ] Implement StudyView with card front/back states, flip animation, and translation display based on UI language.
-7.2. [ ] Add buttons for "know" and "don't know".
-7.3. [ ] Implement swipe gestures (left = don't know, right = know).
-7.4. [ ] Update stats on actions and persist.
-7.5. [ ] Test: Use buttons and swipes, confirm stats increment and next card loads.
+7.1. [x] Implement StudyView with card front/back states, flip animation, and translation display based on UI language.
+7.2. [x] Add buttons for "know" and "don't know".
+7.3. [x] Implement swipe gestures (left = don't know, right = know).
+7.4. [x] Update stats on actions and persist.
+7.5. [x] Test: Use buttons and swipes, confirm stats increment and next card loads.
 
 ## 8) Adaptive Scheduling
 

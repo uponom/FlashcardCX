@@ -81,6 +81,7 @@ body {
 .study-column {
   display: grid;
   gap: 1rem;
+  grid-column: 1 / -1;
 }
 
 .study-column .app__action {
@@ -116,6 +117,70 @@ body {
   margin: 0;
 }
 
+.study-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.study-action {
+  border: 1px solid #d7d1c7;
+  background: #fffdf7;
+  border-radius: 12px;
+  width: 48px;
+  height: 100%;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.study-card {
+  perspective: 1000px;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.study-card__inner {
+  position: relative;
+  width: 100%;
+  min-height: 160px;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+
+.study-card.is-flipped .study-card__inner {
+  transform: rotateY(180deg);
+}
+
+.study-card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid #e3ddd4;
+  background: #fffdf7;
+  backface-visibility: hidden;
+}
+
+.study-card__back {
+  transform: rotateY(180deg);
+}
+
+.study-card__word,
+.study-card__translation {
+  margin: 0;
+  font-size: 1.6rem;
+  text-align: center;
+}
+
+.study-card__translation.is-empty {
+  color: #8b857d;
+}
+
+
 .settings-actions {
   margin-top: 1rem;
 }
@@ -123,6 +188,13 @@ body {
 .card-list {
   display: grid;
   gap: 0.75rem;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+[data-view="card-list"] {
+  grid-column: 1 / -1;
 }
 
 .card-list__item {
@@ -140,6 +212,43 @@ body {
   display: block;
   color: #6a645c;
   font-size: 0.9rem;
+}
+
+.card-list__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.modal {
+  border: none;
+  border-radius: 16px;
+  padding: 0;
+  width: min(360px, 90vw);
+}
+
+.modal::backdrop {
+  background: rgba(20, 18, 16, 0.5);
+}
+
+.modal__content {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.2rem 1.4rem;
+}
+
+.modal__content button[value="cancel"] {
+  order: 1;
+}
+
+.modal__content button[value="confirm"] {
+  order: 2;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .card-form {
@@ -285,6 +394,16 @@ body {
 
   .empty-state__button {
     width: 100%;
+  }
+
+  .study-controls {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .study-action {
+    width: 48px;
+    justify-self: center;
   }
 }
 
