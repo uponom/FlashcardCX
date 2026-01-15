@@ -56,8 +56,8 @@ This checklist decomposes the application into sequential tasks. Each task has a
 7.3. [x] Implement swipe gestures (left = don't know, right = know).
 7.4. [x] Update stats on actions and persist.
 7.5. [x] Test: Use buttons and swipes, confirm stats increment and next card loads.
-7.6. [ ] Store `RecentKnows`/`RecentDontKnows` per card (sum <= 20) and use it for progress bar.
-7.7. [ ] Test: Progress bar reflects recent counters and hides when both are zero.
+7.6. [x] Store `RecentKnows`/`RecentDontKnows` per card (sum <= 20) and use it for progress bar.
+7.7. [x] Test: Progress bar reflects recent counters and hides when both are zero.
 
 ## 8) Adaptive Scheduling
 

@@ -411,9 +411,7 @@ import {
   };
 
   const renderLayout = (state, studyMarkup, studyStatsMarkup, t) => `
-    <header class="app__header">
-      <h1 class="app__title">${t("appTitle")}</h1>
-    </header>
+    <header class="app__header"></header>
     <div class="app__layout">
       ${state.flashcards.length === 0 ? renderEmptyState(t) : `
         <div class="study-column">
@@ -497,14 +495,13 @@ import {
           ${state.settings.ttsEnabled ? "🔊" : "🔇"}
         </button>
       </div>
-      <label class="field">
-        <span class="field__label">${t("uiLanguage")}</span>
-        <select name="ui-language" data-action="ui-language">
-          <option value="en" ${state.settings.uiLanguage === "en" ? "selected" : ""}>English</option>
-          <option value="ua" ${state.settings.uiLanguage === "ua" ? "selected" : ""}>Українська</option>
-          <option value="ru" ${state.settings.uiLanguage === "ru" ? "selected" : ""}>Русский</option>
-        </select>
-      </label>
+      <div class="field">
+        <div class="lang-toggle" role="group" aria-label="${t("uiLanguage")}">
+          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "en" ? "is-active" : ""}" data-action="ui-language" data-lang="en">EN</button>
+          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ua" ? "is-active" : ""}" data-action="ui-language" data-lang="ua">UA</button>
+          <button type="button" class="lang-toggle__button ${state.settings.uiLanguage === "ru" ? "is-active" : ""}" data-action="ui-language" data-lang="ru">RU</button>
+        </div>
+      </div>
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
     </section>
     <dialog class="modal" data-modal="confirm-delete">
@@ -848,6 +845,14 @@ import {
         renderApp();
       }
 
+      if (target.dataset.action === "ui-language") {
+        const nextLang = target.dataset.lang;
+        if (!nextLang) return;
+        store.dispatch({ type: "settings/set", payload: { uiLanguage: nextLang } });
+        persistSettings(store.getState().settings);
+        renderApp();
+      }
+
       if (target.dataset.action === "answer-know" || target.dataset.action === "answer-dont-know") {
         const currentState = store.getState();
         const filtered = selectors.getFilteredCards(currentState);
@@ -956,15 +961,6 @@ import {
       store.dispatch({ type: "filters/setTags", payload: selectedTags });
     });
 
-    app.addEventListener("change", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLSelectElement)) return;
-      if (target.dataset.action !== "ui-language") return;
-      const nextLang = target.value;
-      store.dispatch({ type: "settings/set", payload: { uiLanguage: nextLang } });
-      persistSettings(store.getState().settings);
-      renderApp();
-    });
 
     app.addEventListener("pointerdown", (event) => {
       const target = event.target;
