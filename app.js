@@ -73,6 +73,12 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvNoValidRows: "No valid rows to import.",
       csvImported: "Imported {count} cards.",
       csvNoRows: "CSV file is empty.",
+      csvReadFailed: "Failed to read CSV file.",
+      backupInvalid: "Invalid backup format.",
+      backupFailed: "Backup failed. Please try again.",
+      restoreFailed: "Restore failed. Please try again.",
+      persistWarningFlashcards: "Unable to save changes. Please export a backup.",
+      persistWarningSettings: "Unable to save settings. Please export a backup.",
       deleteCardTitle: "Delete card?",
       deleteCardDesc: "This action cannot be undone.",
       delete: "Delete",
@@ -124,6 +130,12 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvNoValidRows: "Немає коректних рядків для імпорту.",
       csvImported: "Імпортовано {count} карток.",
       csvNoRows: "CSV файл порожній.",
+      csvReadFailed: "Не вдалося прочитати CSV файл.",
+      backupInvalid: "Некоректний формат бекапу.",
+      backupFailed: "Помилка створення бекапу. Спробуйте ще раз.",
+      restoreFailed: "Відновлення не вдалося. Спробуйте ще раз.",
+      persistWarningFlashcards: "Не вдалося зберегти зміни. Будь ласка, створіть бекап.",
+      persistWarningSettings: "Не вдалося зберегти налаштування. Будь ласка, створіть бекап.",
       deleteCardTitle: "Видалити картку?",
       deleteCardDesc: "Цю дію неможливо скасувати.",
       delete: "Видалити",
@@ -175,6 +187,12 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvNoValidRows: "Нет корректных строк для импорта.",
       csvImported: "Импортировано карточек: {count}.",
       csvNoRows: "CSV файл пустой.",
+      csvReadFailed: "Не удалось прочитать CSV файл.",
+      backupInvalid: "Некорректный формат бэкапа.",
+      backupFailed: "Не удалось создать бэкап. Попробуйте ещё раз.",
+      restoreFailed: "Не удалось восстановить данные. Попробуйте ещё раз.",
+      persistWarningFlashcards: "Не удалось сохранить изменения. Пожалуйста, сделайте бэкап.",
+      persistWarningSettings: "Не удалось сохранить настройки. Пожалуйста, сделайте бэкап.",
       deleteCardTitle: "Удалить карточку?",
       deleteCardDesc: "Это действие нельзя отменить.",
       delete: "Удалить",
@@ -336,7 +354,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       console.warn("Failed to persist flashcards.", error);
       store.dispatch({
         type: "persist/setWarning",
-        payload: "Unable to save changes. Please export a backup.",
+        payload: { type: "flashcards" },
       });
       return false;
     }
@@ -351,7 +369,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       console.warn("Failed to persist settings.", error);
       store.dispatch({
         type: "persist/setWarning",
-        payload: "Unable to save settings. Please export a backup.",
+        payload: { type: "settings" },
       });
       return false;
     }
@@ -474,7 +492,18 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     return app.dataset.showCards === "true";
   };
 
-  const renderLayout = (state, studyMarkup, studyStatsMarkup, t) => `
+  const renderLayout = (state, studyMarkup, studyStatsMarkup, t) => {
+    let warningText = null;
+    if (state.persistWarning) {
+      if (typeof state.persistWarning === "string") {
+        warningText = state.persistWarning;
+      } else if (state.persistWarning.type === "settings") {
+        warningText = t("persistWarningSettings");
+      } else {
+        warningText = t("persistWarningFlashcards");
+      }
+    }
+    return `
     <header class="app__header"></header>
     <div class="app__layout">
       ${state.flashcards.length === 0 ? renderEmptyState(t) : `
@@ -572,6 +601,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
           <button class="empty-state__button" type="button" data-action="restore">${t("restore")}</button>
         </div>
       </div>
+      ${warningText ? `<p class="app__warning" role="alert">${warningText}</p>` : ""}
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
     </section>
     <dialog class="modal" data-modal="confirm-delete">
@@ -598,6 +628,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     <input type="file" accept=".json,application/json" data-action="restore-file" hidden>
     <input type="file" accept=".csv,text/csv" data-action="import-file" hidden>
   `;
+  };
 
   let advanceTimer = null;
   let pendingNextId = null;
@@ -880,6 +911,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     app.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const t = createTranslator(store.getState().settings.uiLanguage);
 
       if (target.matches("[data-modal='confirm-delete']")) {
         const dialog = target;
@@ -1047,19 +1079,24 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       }
 
       if (target.dataset.action === "backup") {
-        const payload = {
-          schemaVersion: BACKUP_SCHEMA_VERSION,
-          exportedAt: new Date().toISOString(),
-          flashcards: store.getState().flashcards,
-          settings: store.getState().settings,
-        };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "flashcards-backup.json";
-        link.click();
-        URL.revokeObjectURL(url);
+        try {
+          const payload = {
+            schemaVersion: BACKUP_SCHEMA_VERSION,
+            exportedAt: new Date().toISOString(),
+            flashcards: store.getState().flashcards,
+            settings: store.getState().settings,
+          };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "flashcards-backup.json";
+          link.click();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.warn("Backup failed.", error);
+          alert(t("backupFailed"));
+        }
       }
 
       if (target.dataset.action === "restore") {
@@ -1091,7 +1128,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
         if (!pendingRestorePayload) return;
         const prepared = prepareIncoming(pendingRestorePayload, BACKUP_SCHEMA_VERSION, generateId);
         if (!prepared.ok) {
-          alert("Invalid backup format.");
+          alert(t("backupInvalid"));
           return;
         }
         const incoming = prepared.cards;
@@ -1162,7 +1199,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
           alert(t("csvImported", { count: newCards.length }));
         })
         .catch(() => {
-          alert(t("csvNoValidRows"));
+          alert(t("csvReadFailed"));
         });
     });
 
@@ -1178,12 +1215,13 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       if (target.dataset.action === "restore-file") {
         const file = target.files?.[0];
         if (!file) return;
+        const t = createTranslator(store.getState().settings.uiLanguage);
         const reader = new FileReader();
         reader.onload = () => {
           try {
             const parsed = JSON.parse(String(reader.result || ""));
             if (!validateBackup(parsed, BACKUP_SCHEMA_VERSION)) {
-              alert("Invalid backup format.");
+              alert(t("backupInvalid"));
               return;
             }
             const existing = store.getState().flashcards;
@@ -1196,7 +1234,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
             } else {
               const prepared = prepareIncoming(parsed, BACKUP_SCHEMA_VERSION, generateId);
               if (!prepared.ok) {
-                alert("Invalid backup format.");
+                alert(t("backupInvalid"));
                 return;
               }
               const incoming = prepared.cards;
@@ -1211,7 +1249,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
             }
           } catch (error) {
             console.warn("Restore failed.", error);
-            alert("Restore failed.");
+            alert(t("restoreFailed"));
           }
         };
         reader.readAsText(file);

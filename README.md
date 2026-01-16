@@ -16,19 +16,39 @@ A Progressive Web App (PWA) for learning vocabulary using adaptive flashcards. B
 
 ## Project Structure
 
-(to be done)
+- `index.html` — entry point
+- `app.js` — UI and app wiring
+- `core.mjs` — data model, selectors, CSV parsing, storage helpers
+- `backup.mjs` — backup/restore helpers
+- `styles.css` — UI styles
+- `sw.js` — service worker (offline cache)
+- `manifest.json` — PWA manifest
+- `tests/run.mjs` — minimal unit tests
 
 ## Getting Started
 
-(to be done)
+Run a local server (required for service workers and PWA testing):
+
+```bash
+python3 -m http.server 8001
+```
+
+Open `http://localhost:8001/` in your browser.
 
 ## Development
 
-(to be done)
+- No build step or external dependencies.
+- Data is stored in `localStorage`.
+- Backup/restore uses JSON files (cards + settings).
+- CSV import expects 4 comma-separated fields per row: `word,translation_en,translation_ua,translation_ru`.
 
 ## Testing
 
-(to be done)
+Run unit tests with Node:
+
+```bash
+node tests/run.mjs
+```
 
 ## Requirements
 
@@ -37,4 +57,8 @@ A Progressive Web App (PWA) for learning vocabulary using adaptive flashcards. B
   - Service Worker support
   - ES6 module support
   - Web Speech API (optional, for TTS)
-Simple Flashcards PWA
+
+## Offline Use
+
+- The app is offline-first once loaded (assets cached by the service worker).
+- For a clean offline test, load the app once online, then switch to offline mode and reload.

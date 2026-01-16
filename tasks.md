@@ -107,13 +107,13 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 14) Error Handling and Resilience
 
-14.1. [ ] Implement `persistWarning` UI when storage writes fail (best-effort save).
-14.2. [ ] Add user-friendly error messages for backup/CSV/restore failures.
-14.3. [ ] Test: Simulate storage quota error and verify warning and export suggestion.
+14.1. [x] Implement `persistWarning` UI when storage writes fail (best-effort save).
+14.2. [x] Add user-friendly error messages for backup/CSV/restore failures.
+14.3. [x] Test: Simulate storage quota error and verify warning and export suggestion.
 
 ## 15) Final QA and Documentation
 
-15.1. [ ] Run through full study workflow, editing, filtering, import/export, and TTS.
-15.2. [ ] Confirm all requirements are met and no regressions exist.
-15.3. [ ] Update README with run/usage instructions and offline constraints.
-15.4. [ ] Test: Fresh browser profile install and full flow validation.
+15.1. [x] Run through full study workflow, editing, filtering, import/export, and TTS.
+15.2. [x] Confirm all requirements are met and no regressions exist.
+15.3. [x] Update README with run/usage instructions and offline constraints.
+15.4. [x] Test: Fresh browser profile install and full flow validation.
