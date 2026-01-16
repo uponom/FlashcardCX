@@ -93,17 +93,17 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 12) CSV Import
 
-12.1. [ ] Implement CSV parser (comma-delimited, four fields per row, no headers) for word + translations EN/UA/RU (translations may be empty).
-12.2. [ ] Validate required fields; collect errors with line numbers.
-12.3. [ ] Allow partial import or cancel when errors are present.
-12.4. [ ] Test: Import valid CSV and a CSV with errors; confirm proper messaging and translations parsing (including empty fields).
+12.1. [x] Implement CSV parser (comma-delimited, four fields per row, no headers) for word + translations EN/UA/RU (translations may be empty).
+12.2. [x] Validate required fields; collect errors with line numbers.
+12.3. [x] Allow partial import or cancel when errors are present.
+12.4. [x] Test: Import valid CSV and a CSV with errors; confirm proper messaging and translations parsing (including empty fields).
 
 ## 13) PWA and Offline
 
-13.1. [ ] Create `manifest.json` with required fields and icons.
-13.2. [ ] Implement service worker with cache-first strategy for app assets.
-13.3. [ ] Ensure no network requests beyond asset caching.
-13.4. [ ] Test: Install as PWA, go offline, and verify the app works with stored data.
+13.1. [x] Create `manifest.json` with required fields and icons.
+13.2. [x] Implement service worker with cache-first strategy for app assets.
+13.3. [x] Ensure no network requests beyond asset caching.
+13.4. [x] Test: Install as PWA, go offline, and verify the app works with stored data.
 
 ## 14) Error Handling and Resilience
 

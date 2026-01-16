@@ -865,6 +865,17 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     }
   }
 
+  if ("serviceWorker" in navigator) {
+    const registerServiceWorker = () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => undefined);
+    };
+    if (document.readyState === "complete") {
+      registerServiceWorker();
+    } else {
+      window.addEventListener("load", registerServiceWorker);
+    }
+  }
+
   if (app) {
     app.addEventListener("click", (event) => {
       const target = event.target;
