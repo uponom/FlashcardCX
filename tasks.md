@@ -85,11 +85,11 @@ This checklist decomposes the application into sequential tasks. Each task has a
 
 ## 11) Backup and Restore
 
-11.1. [ ] Implement JSON backup export with schema version (including translations object and settings).
-11.2. [ ] Implement restore flow with validation and merge/overwrite selection.
-11.3. [ ] Implement duplicate detection by normalized word+translations(EN/UA/RU)+language.
-11.4. [ ] Merge behavior: keep existing stats, optionally union tags.
-11.5. [ ] Test: Export, clear storage, restore, and verify full data integrity; test merge vs overwrite and settings restore.
+11.1. [x] Implement JSON backup export with schema version (including translations object and settings).
+11.2. [x] Implement restore flow with validation and merge/overwrite selection.
+11.3. [x] Implement duplicate detection by normalized word+translations(EN/UA/RU)+language.
+11.4. [x] Merge behavior: keep existing stats, optionally union tags.
+11.5. [x] Test: Export, clear storage, restore, and verify full data integrity; test merge vs overwrite and settings restore.
 
 ## 12) CSV Import
 

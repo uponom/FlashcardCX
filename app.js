@@ -3,6 +3,7 @@ import {
   generateId,
   normalizeTags,
   normalizeTranslations,
+  parseCsvText,
   migrateFlashcards,
   selectors,
   createStorageAdapter,
@@ -64,6 +65,14 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       restoreDesc: "Choose how to apply the backup.",
       merge: "Merge",
       overwrite: "Overwrite",
+      csvErrorsTitle: "CSV contains errors:",
+      csvErrorFieldCount: "Expected 4 fields, got {count}.",
+      csvErrorMissingWord: "Word is required.",
+      csvErrorUnclosedQuote: "Unclosed quote.",
+      csvImportConfirm: "Import valid rows only?",
+      csvNoValidRows: "No valid rows to import.",
+      csvImported: "Imported {count} cards.",
+      csvNoRows: "CSV file is empty.",
       deleteCardTitle: "Delete card?",
       deleteCardDesc: "This action cannot be undone.",
       delete: "Delete",
@@ -107,6 +116,14 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       restoreDesc: "Оберіть спосіб застосування бекапу.",
       merge: "Об'єднати",
       overwrite: "Перезаписати",
+      csvErrorsTitle: "CSV містить помилки:",
+      csvErrorFieldCount: "Очікується 4 поля, отримано {count}.",
+      csvErrorMissingWord: "Слово обов'язкове.",
+      csvErrorUnclosedQuote: "Незакрита лапка.",
+      csvImportConfirm: "Імпортувати лише коректні рядки?",
+      csvNoValidRows: "Немає коректних рядків для імпорту.",
+      csvImported: "Імпортовано {count} карток.",
+      csvNoRows: "CSV файл порожній.",
       deleteCardTitle: "Видалити картку?",
       deleteCardDesc: "Цю дію неможливо скасувати.",
       delete: "Видалити",
@@ -150,6 +167,14 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       restoreDesc: "Выберите способ применения бэкапа.",
       merge: "Объединить",
       overwrite: "Перезаписать",
+      csvErrorsTitle: "CSV содержит ошибки:",
+      csvErrorFieldCount: "Ожидается 4 поля, получено {count}.",
+      csvErrorMissingWord: "Слово обязательно.",
+      csvErrorUnclosedQuote: "Незакрытая кавычка.",
+      csvImportConfirm: "Импортировать только корректные строки?",
+      csvNoValidRows: "Нет корректных строк для импорта.",
+      csvImported: "Импортировано карточек: {count}.",
+      csvNoRows: "CSV файл пустой.",
       deleteCardTitle: "Удалить карточку?",
       deleteCardDesc: "Это действие нельзя отменить.",
       delete: "Удалить",
@@ -412,13 +437,27 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     }
   };
 
+  const describeCsvError = (error, t) => {
+    if (!error) return "";
+    if (error.code === "field_count") {
+      return t("csvErrorFieldCount", { count: error.count });
+    }
+    if (error.code === "missing_word") {
+      return t("csvErrorMissingWord");
+    }
+    if (error.code === "unclosed_quote") {
+      return t("csvErrorUnclosedQuote");
+    }
+    return String(error.code || "");
+  };
+
   const renderEmptyState = (t) => `
     <section class="panel empty-state" aria-label="Empty state">
       <h2 class="empty-state__title">${t("emptyTitle")}</h2>
       <p class="panel__content">${t("emptyDesc")}</p>
       <div class="empty-state__actions">
-        <button class="empty-state__button" type="button">${t("createCard")}</button>
-        <button class="empty-state__button" type="button">${t("importCsv")}</button>
+        <button class="empty-state__button" type="button" data-action="open-create">${t("createCard")}</button>
+        <button class="empty-state__button" type="button" data-action="import-csv">${t("importCsv")}</button>
         <button class="empty-state__button" type="button">${t("settings")}</button>
       </div>
     </section>
@@ -528,6 +567,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
           </div>
         </div>
         <div class="settings-group">
+          <button class="empty-state__button" type="button" data-action="import-csv">${t("importCsv")}</button>
           <button class="empty-state__button" type="button" data-action="backup">${t("backup")}</button>
           <button class="empty-state__button" type="button" data-action="restore">${t("restore")}</button>
         </div>
@@ -556,6 +596,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       </div>
     </dialog>
     <input type="file" accept=".json,application/json" data-action="restore-file" hidden>
+    <input type="file" accept=".csv,text/csv" data-action="import-file" hidden>
   `;
 
   let advanceTimer = null;
@@ -1018,6 +1059,14 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
         }
       }
 
+      if (target.dataset.action === "import-csv") {
+        const input = app.querySelector("[data-action='import-file']");
+        if (input instanceof HTMLInputElement) {
+          input.value = "";
+          input.click();
+        }
+      }
+
       if (target.dataset.action === "restore-cancel") {
         const dialog = app.querySelector("[data-modal='restore-mode']");
         if (dialog instanceof HTMLDialogElement) {
@@ -1042,7 +1091,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
           const existing = store.getState().flashcards;
           nextCards = mergeCards(existing, incoming);
         }
-        if (mode === "overwrite" && prepared.settings) {
+        if (prepared.settings) {
           store.dispatch({ type: "settings/set", payload: prepared.settings });
           persistSettings(store.getState().settings);
         }
@@ -1056,6 +1105,54 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
         }
         renderApp();
       }
+    });
+
+    app.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.dataset.action !== "import-file") return;
+      const file = target.files && target.files[0];
+      if (!file) return;
+      const t = createTranslator(store.getState().settings.uiLanguage);
+      file
+        .text()
+        .then((text) => {
+          const parsed = parseCsvText(text);
+          if (!parsed.rows.length && !parsed.errors.length) {
+            alert(t("csvNoRows"));
+            return;
+          }
+          let rowsToImport = parsed.rows;
+          if (parsed.errors.length) {
+            const errorLines = parsed.errors
+              .map((error) => `#${error.line}: ${describeCsvError(error, t)}`)
+              .join("\n");
+            const proceed = confirm(`${t("csvErrorsTitle")}\n${errorLines}\n\n${t("csvImportConfirm")}`);
+            if (!proceed) return;
+          }
+          if (!rowsToImport.length) {
+            alert(t("csvNoValidRows"));
+            return;
+          }
+          const newCards = rowsToImport.map((row) =>
+            createFlashcard({
+              word: row.word,
+              translations: row.translations,
+              tags: [],
+              language: "en",
+            })
+          );
+          const updated = [...store.getState().flashcards, ...newCards];
+          store.dispatch({ type: "flashcards/set", payload: updated });
+          store.dispatch({ type: "study/setCurrent", payload: updated[0]?.id || null });
+          persistFlashcards(updated);
+          app.dataset.showForm = updated.length === 0 ? "true" : "false";
+          renderApp();
+          alert(t("csvImported", { count: newCards.length }));
+        })
+        .catch(() => {
+          alert(t("csvNoValidRows"));
+        });
     });
 
     app.addEventListener("change", (event) => {

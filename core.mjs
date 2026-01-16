@@ -59,6 +59,70 @@ const normalizeTags = (tagsInput) => {
   return Array.from(unique);
 };
 
+const parseCsvLine = (line) => {
+  const fields = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          field += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      fields.push(field);
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+  fields.push(field);
+  return { fields, inQuotes };
+};
+
+const parseCsvText = (text) => {
+  const lines = String(text ?? "").split(/\r?\n/);
+  const rows = [];
+  const errors = [];
+  lines.forEach((rawLine, index) => {
+    let line = rawLine;
+    if (index === 0) {
+      line = line.replace(/^\uFEFF/, "");
+    }
+    if (!line.trim()) return;
+    const parsed = parseCsvLine(line);
+    if (parsed.inQuotes) {
+      errors.push({ line: index + 1, code: "unclosed_quote" });
+      return;
+    }
+    if (parsed.fields.length !== 4) {
+      errors.push({ line: index + 1, code: "field_count", count: parsed.fields.length });
+      return;
+    }
+    const [word, en, ua, ru] = parsed.fields;
+    const trimmedWord = String(word ?? "").trim();
+    if (!trimmedWord) {
+      errors.push({ line: index + 1, code: "missing_word" });
+      return;
+    }
+    rows.push({
+      line: index + 1,
+      word: trimmedWord,
+      translations: normalizeTranslations({ en, ua, ru }),
+    });
+  });
+  return { rows, errors };
+};
+
 const selectors = {
   getFilteredCards(state) {
     if (!state.selectedTags || !state.selectedTags.length) return state.flashcards;
@@ -175,6 +239,7 @@ export {
   generateId,
   normalizeTags,
   normalizeTranslations,
+  parseCsvText,
   migrateFlashcards,
   selectors,
   createStorageAdapter,

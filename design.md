@@ -86,6 +86,7 @@ Data flow is unidirectional: UI events -> state updates -> persistence -> UI re-
 - Restore:
   - Merge or overwrite strategy.
   - Merge uses duplicate detection rules.
+  - Restores settings from backup after applying cards.
 - CSV:
   - Comma-delimited, no headers, four fields per row (word + translations EN/UA/RU).
   - Validates non-empty required fields.

@@ -5,6 +5,7 @@ import {
   migrateFlashcards,
   selectors,
   createStorageAdapter,
+  parseCsvText,
   computeWeights,
   pickNextCard,
 } from "../core.mjs";
@@ -140,6 +141,7 @@ assert("mergeCards dedupes by key", merged.length === 1 && merged[0].tags.includ
 
 const prepared = prepareIncoming(backupPayload, 1, () => "gen-id");
 assert("prepareIncoming returns ok", prepared.ok && prepared.cards.length === 1 && prepared.cards[0].id);
+assert("prepareIncoming returns settings", prepared.settings && prepared.settings.uiLanguage === "ru");
 
 const appSource = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 assert(
@@ -156,6 +158,13 @@ assert("computeWeights prioritizes more dontKnow", weights[0] > weights[1]);
 
 const picked = pickNextCard([{ id: "a", stats: { know: 0, dontKnow: 0 } }], { prioritizeUnseen: true }, () => 0);
 assert("pickNextCard returns a card when available", picked && picked.id === "a");
+
+const parsedCsv = parseCsvText("hola,hello,vitai,privet\nword,,,\n");
+assert("parseCsvText reads valid rows", parsedCsv.rows.length === 2 && parsedCsv.errors.length === 0);
+assert("parseCsvText keeps empty translations", parsedCsv.rows[1].translations.en === "");
+
+const parsedCsvErrors = parseCsvText("one,two,three\n,hello,,\n\"broken,quote\n");
+assert("parseCsvText reports errors", parsedCsvErrors.errors.length === 3);
 
 const failed = results.filter((result) => !result.passed);
 if (failed.length) {
