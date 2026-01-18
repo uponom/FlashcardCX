@@ -1,4 +1,4 @@
-const CACHE_NAME = "flashcardcx-v1";
+const CACHE_NAME = "flashcardcx-v2";
 const CACHE_ASSETS = [
   "./",
   "./index.html",
@@ -27,6 +27,13 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "get-cache-name") return;
+  const port = event.ports && event.ports[0];
+  if (!port) return;
+  port.postMessage({ cacheName: CACHE_NAME });
 });
 
 self.addEventListener("fetch", (event) => {

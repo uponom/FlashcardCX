@@ -76,6 +76,7 @@ body {
 
 .app__settings {
   align-self: end;
+  position: relative;
 }
 
 .app__header {
@@ -211,9 +212,14 @@ body {
 }
 
 .study-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.study-actions {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: stretch;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -221,9 +227,11 @@ body {
   border: 1px solid var(--input-border);
   background: var(--card-bg);
   border-radius: 12px;
-  width: 48px;
-  height: 100%;
-  font-size: 1.4rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  color: var(--text);
   cursor: pointer;
   transition: opacity 0.2s ease;
   box-shadow: 0 6px 14px var(--shadow);
@@ -276,11 +284,17 @@ body {
   transform: rotateY(180deg);
 }
 
-.study-card__word,
+.study-card__word {
+  margin: 0;
+  font-size: 2rem;
+  text-align: center;
+}
+
 .study-card__translation {
   margin: 0;
   font-size: 1.6rem;
   text-align: center;
+  font-style: italic;
 }
 
 .study-card__translation.is-empty {
@@ -348,6 +362,10 @@ body {
   padding: 0.5rem 0.7rem;
   border: 1px dashed var(--panel-bg);
   border-radius: 14px;
+}
+
+.settings-field select {
+  min-width: 180px;
 }
 
 .card-list {
@@ -491,6 +509,13 @@ body {
   min-height: 1.2rem;
 }
 
+.translation-status {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-height: 1rem;
+}
+
 .test-list {
   list-style: none;
   padding: 0;
@@ -520,6 +545,16 @@ body {
   font-size: 0.9rem;
 }
 
+.settings-version {
+  position: absolute;
+  bottom: 0.9rem;
+  right: 1.1rem;
+  font-size: 0.7rem;
+  color: var(--footer);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
 .app__warning {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.85rem;
@@ -527,6 +562,15 @@ body {
   background: var(--fail-bg);
   color: var(--fail-text);
   font-size: 0.9rem;
+}
+
+.app__notice {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  background: var(--panel-border);
+  color: var(--text);
+  font-size: 0.85rem;
 }
 
 .empty-state {
@@ -633,13 +677,11 @@ body[data-theme="light"] .app__action {
   }
 
   .study-controls {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
+    gap: 0.75rem;
   }
 
   .study-action {
-    width: 48px;
-    justify-self: center;
+    width: 100%;
   }
 }
 

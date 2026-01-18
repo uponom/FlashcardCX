@@ -18,6 +18,18 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
   };
 
   const BACKUP_SCHEMA_VERSION = 1;
+  const TRANSLATE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+  const TRANSLATE_FALLBACK_ENDPOINT = "https://api.mymemory.translated.net/get";
+  const TRANSLATE_FALLBACK_ENDPOINT_2 = "https://libretranslate.de/translate";
+  const TRANSLATE_TIMEOUT_MS = 6500;
+  const LANGUAGE_CODE_MAP = {
+    en: "en",
+    de: "de",
+    es: "es",
+    fr: "fr",
+    ua: "uk",
+    ru: "ru",
+  };
 
   const defaultSettings = {
     uiLanguage: "en",
@@ -25,6 +37,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     prioritizeUnseen: false,
     theme: "light",
     ttsVoiceMap: {},
+    defaultCardLanguage: "en",
   };
 
   const I18N = {
@@ -74,6 +87,9 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvImported: "Imported {count} cards.",
       csvNoRows: "CSV file is empty.",
       csvReadFailed: "Failed to read CSV file.",
+      translateWorking: "Translating…",
+      translateFailed: "Translation failed. Check your connection.",
+      translateIssueNotice: "Online translation is currently unavailable.",
       backupInvalid: "Invalid backup format.",
       backupFailed: "Backup failed. Please try again.",
       restoreFailed: "Restore failed. Please try again.",
@@ -84,6 +100,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       delete: "Delete",
       edit: "Edit",
       uiLanguage: "Interface language",
+      defaultCardLanguage: "Default card language",
     },
     ua: {
       appTitle: "Додаток для флешкарт",
@@ -131,6 +148,9 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvImported: "Імпортовано {count} карток.",
       csvNoRows: "CSV файл порожній.",
       csvReadFailed: "Не вдалося прочитати CSV файл.",
+      translateWorking: "Переклад…",
+      translateFailed: "Не вдалося перекласти. Перевірте з'єднання.",
+      translateIssueNotice: "Онлайн-переклад зараз недоступний.",
       backupInvalid: "Некоректний формат бекапу.",
       backupFailed: "Помилка створення бекапу. Спробуйте ще раз.",
       restoreFailed: "Відновлення не вдалося. Спробуйте ще раз.",
@@ -141,6 +161,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       delete: "Видалити",
       edit: "Редагувати",
       uiLanguage: "Мова інтерфейсу",
+      defaultCardLanguage: "Мова карток за замовчуванням",
     },
     ru: {
       appTitle: "Приложение флеш-карт",
@@ -188,6 +209,9 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       csvImported: "Импортировано карточек: {count}.",
       csvNoRows: "CSV файл пустой.",
       csvReadFailed: "Не удалось прочитать CSV файл.",
+      translateWorking: "Перевод…",
+      translateFailed: "Не удалось перевести. Проверьте соединение.",
+      translateIssueNotice: "Онлайн-перевод сейчас недоступен.",
       backupInvalid: "Некорректный формат бэкапа.",
       backupFailed: "Не удалось создать бэкап. Попробуйте ещё раз.",
       restoreFailed: "Не удалось восстановить данные. Попробуйте ещё раз.",
@@ -198,6 +222,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       delete: "Удалить",
       edit: "Редактировать",
       uiLanguage: "Язык интерфейса",
+      defaultCardLanguage: "Язык карточек по умолчанию",
     },
   };
 
@@ -336,6 +361,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     }
   }
   const initialSettings = storage.loadSettings();
+  let appVersion = "";
 
   const store = createStore({
     flashcards: initialFlashcards,
@@ -439,16 +465,29 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     const wordValue = card ? card.word : "";
     const translationsValue = normalizeTranslations(card ? card.translations : "");
     const tagsValue = card ? card.tags.join(", ") : "";
-    const languageValue = card ? card.language : "en";
+    const defaultLanguage = store.getState().settings.defaultCardLanguage || "en";
+    const languageValue = card ? card.language : defaultLanguage;
     const title = card ? "Edit Card" : "New Card";
 
     const form = app.querySelector("[data-view='card-form']");
     if (form) {
       form.querySelector("h2").textContent = title;
       form.querySelector("input[name='word']").value = wordValue;
-      form.querySelector("input[name='translation-en']").value = translationsValue.en;
-      form.querySelector("input[name='translation-ua']").value = translationsValue.ua;
-      form.querySelector("input[name='translation-ru']").value = translationsValue.ru;
+      const translationEn = form.querySelector("input[name='translation-en']");
+      const translationUa = form.querySelector("input[name='translation-ua']");
+      const translationRu = form.querySelector("input[name='translation-ru']");
+      if (translationEn instanceof HTMLInputElement) {
+        translationEn.value = translationsValue.en;
+        delete translationEn.dataset.autoTranslated;
+      }
+      if (translationUa instanceof HTMLInputElement) {
+        translationUa.value = translationsValue.ua;
+        delete translationUa.dataset.autoTranslated;
+      }
+      if (translationRu instanceof HTMLInputElement) {
+        translationRu.value = translationsValue.ru;
+        delete translationRu.dataset.autoTranslated;
+      }
       form.querySelector("input[name='tags']").value = tagsValue;
       form.querySelector("select[name='language']").value = languageValue;
       form.querySelector("[data-form-error]").textContent = "";
@@ -467,6 +506,192 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       return t("csvErrorUnclosedQuote");
     }
     return String(error.code || "");
+  };
+
+  const fetchWithTimeout = (url, options, timeoutMs, signal) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const abortListener = () => controller.abort();
+    if (signal) {
+      signal.addEventListener("abort", abortListener, { once: true });
+    }
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+      clearTimeout(timeoutId);
+      if (signal) {
+        signal.removeEventListener("abort", abortListener);
+      }
+    });
+  };
+
+  const fetchTranslation = async (text, sourceLang, targetLang, signal) => {
+    const googleUrl = new URL(TRANSLATE_ENDPOINT);
+    googleUrl.searchParams.set("client", "gtx");
+    googleUrl.searchParams.set("sl", sourceLang);
+    googleUrl.searchParams.set("tl", targetLang);
+    googleUrl.searchParams.set("dt", "t");
+    googleUrl.searchParams.set("q", text);
+    try {
+      const googleResponse = await fetchWithTimeout(
+        googleUrl.toString(),
+        { method: "GET" },
+        TRANSLATE_TIMEOUT_MS,
+        signal
+      );
+      if (googleResponse.ok) {
+        const data = await googleResponse.json();
+        const pieces = Array.isArray(data?.[0]) ? data[0].map((part) => part?.[0]).filter(Boolean) : [];
+        const translated = pieces.join("").trim();
+        if (translated) return translated;
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
+
+    try {
+      const fallbackUrl = new URL(TRANSLATE_FALLBACK_ENDPOINT);
+      fallbackUrl.searchParams.set("q", text);
+      fallbackUrl.searchParams.set("langpair", `${sourceLang}|${targetLang}`);
+      const fallbackResponse = await fetchWithTimeout(
+        fallbackUrl.toString(),
+        { method: "GET" },
+        TRANSLATE_TIMEOUT_MS,
+        signal
+      );
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        const fallbackText = fallbackData && fallbackData.responseData && fallbackData.responseData.translatedText;
+        if (typeof fallbackText === "string" && fallbackText.trim()) {
+          return fallbackText.trim();
+        }
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
+
+    try {
+      const libreResponse = await fetchWithTimeout(
+        TRANSLATE_FALLBACK_ENDPOINT_2,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: text,
+            source: sourceLang,
+            target: targetLang,
+            format: "text",
+          }),
+        },
+        TRANSLATE_TIMEOUT_MS,
+        signal
+      );
+      if (!libreResponse.ok) return "";
+      const libreData = await libreResponse.json();
+      const libreText = libreData && libreData.translatedText;
+      return typeof libreText === "string" ? libreText.trim() : "";
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
+
+    return "";
+  };
+
+  const setTranslateIssue = (value) => {
+    if (translateIssue === value) return;
+    translateIssue = value;
+    renderApp();
+  };
+
+  const autoTranslateForm = (form) => {
+    if (!form || app.dataset.activeCardId) return;
+    const wordInput = form.querySelector("input[name='word']");
+    const langSelect = form.querySelector("select[name='language']");
+    const statusEl = form.querySelector("[data-translate-status]");
+    if (!(wordInput instanceof HTMLInputElement)) return;
+    const text = wordInput.value.trim();
+    if (statusEl) statusEl.textContent = "";
+    if (!text) return;
+    const sourceLang = LANGUAGE_CODE_MAP[String(langSelect?.value || "en")] || "en";
+    const targets = [
+      { input: form.querySelector("input[name='translation-en']"), code: "en" },
+      { input: form.querySelector("input[name='translation-ua']"), code: "uk" },
+      { input: form.querySelector("input[name='translation-ru']"), code: "ru" },
+    ];
+    const pendingTargets = targets.filter((target) => {
+      if (!(target.input instanceof HTMLInputElement)) return false;
+      if (target.code === sourceLang) return false;
+      if (!target.input.value.trim()) return true;
+      return target.input.dataset.autoTranslated === "true";
+    });
+    if (!pendingTargets.length) return;
+
+    if (pendingAutoTranslate) {
+      pendingAutoTranslate.abort();
+    }
+    const controller = new AbortController();
+    pendingAutoTranslate = controller;
+    const requestId = ++autoTranslateSeq;
+    const t = createTranslator(store.getState().settings.uiLanguage);
+    if (statusEl) statusEl.textContent = t("translateWorking");
+    const timeoutId = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
+
+    Promise.all(
+      pendingTargets.map(async (target) => {
+        try {
+          return {
+            target,
+            translated: await fetchTranslation(text, sourceLang, target.code, controller.signal),
+          };
+        } catch (error) {
+          return { target, translated: "", error };
+        }
+      })
+    )
+      .then((results) => {
+        if (controller.signal.aborted || requestId !== autoTranslateSeq) return;
+        const hadSuccess = results.some((result) => result.translated);
+        results.forEach(({ target, translated }) => {
+          if (!translated || !(target.input instanceof HTMLInputElement)) return;
+          if (app.dataset.activeCardId) return;
+          if (target.input.value.trim() && target.input.dataset.autoTranslated !== "true") return;
+          target.input.value = translated;
+          target.input.dataset.autoTranslated = "true";
+        });
+        if (statusEl) statusEl.textContent = hadSuccess ? "" : t("translateFailed");
+        setTranslateIssue(!hadSuccess);
+      })
+      .catch(() => {
+        if (statusEl && requestId === autoTranslateSeq) {
+          statusEl.textContent = createTranslator(store.getState().settings.uiLanguage)("translateFailed");
+        }
+        setTranslateIssue(true);
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+        if (pendingAutoTranslate === controller) {
+          pendingAutoTranslate = null;
+        }
+      });
+  };
+
+  const scheduleAutoTranslate = (form) => {
+    if (autoTranslateTimer) clearTimeout(autoTranslateTimer);
+    autoTranslateTimer = setTimeout(() => autoTranslateForm(form), 500);
+  };
+
+  const clearAutoTranslatedFields = (form) => {
+    if (!form) return;
+    const translationInputs = [
+      form.querySelector("input[name='translation-en']"),
+      form.querySelector("input[name='translation-ua']"),
+      form.querySelector("input[name='translation-ru']"),
+    ];
+    translationInputs.forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      if (input.dataset.autoTranslated === "true") {
+        input.value = "";
+        delete input.dataset.autoTranslated;
+      }
+    });
   };
 
   const renderEmptyState = (t) => `
@@ -567,6 +792,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
             </select>
           </label>
           <p class="form-error" data-form-error></p>
+          <p class="translation-status" data-translate-status aria-live="polite"></p>
           <div class="card-form__actions">
             <button type="submit" class="app__action">${t("saveCard")}</button>
             <button type="button" class="empty-state__button" data-action="cancel-form">${t("cancel")}</button>
@@ -594,13 +820,28 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
           </div>
         </div>
         <div class="settings-group">
+          <label class="field settings-field">
+            <span class="field__label">${t("defaultCardLanguage")}</span>
+            <select name="default-language">
+              <option value="en" ${state.settings.defaultCardLanguage === "en" ? "selected" : ""}>English</option>
+              <option value="de" ${state.settings.defaultCardLanguage === "de" ? "selected" : ""}>German</option>
+              <option value="es" ${state.settings.defaultCardLanguage === "es" ? "selected" : ""}>Spanish</option>
+              <option value="fr" ${state.settings.defaultCardLanguage === "fr" ? "selected" : ""}>French</option>
+              <option value="ua" ${state.settings.defaultCardLanguage === "ua" ? "selected" : ""}>Ukrainian</option>
+              <option value="ru" ${state.settings.defaultCardLanguage === "ru" ? "selected" : ""}>Russian</option>
+            </select>
+          </label>
+        </div>
+        <div class="settings-group">
           <button class="empty-state__button" type="button" data-action="import-csv">${t("importCsv")}</button>
           <button class="empty-state__button" type="button" data-action="backup">${t("backup")}</button>
           <button class="empty-state__button" type="button" data-action="restore">${t("restore")}</button>
         </div>
       </div>
       ${warningText ? `<p class="app__warning" role="alert">${warningText}</p>` : ""}
+      ${translateIssue ? `<p class="app__notice">${t("translateIssueNotice")}</p>` : ""}
       <p class="app__footer">Cards: ${state.flashcards.length}. UI: ${state.settings.uiLanguage.toUpperCase()}.</p>
+      ${appVersion ? `<span class="settings-version" aria-hidden="true">${appVersion}</span>` : ""}
     </section>
     <dialog class="modal" data-modal="confirm-delete">
       <div class="modal__content">
@@ -632,6 +873,10 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
   let pendingNextId = null;
   let swipeStart = null;
   let pendingRestorePayload = null;
+  let autoTranslateTimer = null;
+  let pendingAutoTranslate = null;
+  let autoTranslateSeq = 0;
+  let translateIssue = false;
 
   const transitionToNext = (nextId) => {
     if (!nextId) return;
@@ -670,13 +915,6 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
     }
     return `
       <div class="study-controls" data-action="study-card">
-        <button
-          class="study-action study-action--left"
-          type="button"
-          data-action="answer-dont-know"
-          aria-label="${t("dontKnow")}"
-          title="${t("dontKnow")}"
-        >❌</button>
         <div class="study-card" data-card-id="${current.id}">
           <div class="study-card__inner">
             <div class="study-card__face study-card__front">
@@ -701,13 +939,22 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
             `;
           })()}
         </div>
-        <button
-          class="study-action study-action--right"
-          type="button"
-          data-action="answer-know"
-          aria-label="${t("know")}"
-          title="${t("know")}"
-        >✅</button>
+        <div class="study-actions">
+          <button
+            class="study-action study-action--left"
+            type="button"
+            data-action="answer-dont-know"
+            aria-label="${t("dontKnow")}"
+            title="${t("dontKnow")}"
+          >❌ ${t("dontKnow")}</button>
+          <button
+            class="study-action study-action--right"
+            type="button"
+            data-action="answer-know"
+            aria-label="${t("know")}"
+            title="${t("know")}"
+          >✅ ${t("know")}</button>
+        </div>
       </div>
     `;
   };
@@ -854,6 +1101,44 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
   if (app && app.dataset.showCards === undefined) {
     app.dataset.showCards = "false";
   }
+
+  const extractVersionFromCacheName = (cacheName) => {
+    const text = String(cacheName || "").trim();
+    if (!text) return "";
+    const match = text.match(/-([^-]+)$/);
+    return match ? match[1] : text;
+  };
+
+  const requestVersionFromSwSource = () => {
+    fetch("./sw.js", { cache: "no-store" })
+      .then((response) => (response.ok ? response.text() : ""))
+      .then((text) => {
+        const match = text.match(/const\\s+CACHE_NAME\\s*=\\s*["']([^"']+)["']/);
+        if (!match) return;
+        appVersion = extractVersionFromCacheName(match[1]);
+        renderApp();
+      })
+      .catch(() => undefined);
+  };
+
+  const requestSwVersion = () => {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker
+      .ready
+      .then((registration) => {
+        const worker = registration.active;
+        if (!worker) return;
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => {
+          const cacheName = event.data && event.data.cacheName;
+          if (!cacheName) return;
+          appVersion = extractVersionFromCacheName(cacheName);
+          renderApp();
+        };
+        worker.postMessage({ type: "get-cache-name" }, [channel.port2]);
+      })
+      .catch(() => undefined);
+  };
   if ("speechSynthesis" in window) {
     window.speechSynthesis.addEventListener("voiceschanged", () => {
       loadVoices();
@@ -904,6 +1189,8 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       window.addEventListener("load", registerServiceWorker);
     }
   }
+  requestVersionFromSwSource();
+  requestSwVersion();
 
   if (app) {
     app.addEventListener("click", (event) => {
@@ -1287,6 +1574,40 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       if (!app.dataset.studyFlip || app.dataset.studyFlip !== "true") return;
       if (!pendingNextId) return;
       transitionToNext(pendingNextId);
+    });
+
+    app.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const name = target.getAttribute("name");
+      if (!name) return;
+      if (name === "word") {
+        const form = target.closest(".card-form");
+        if (!form) return;
+        clearAutoTranslatedFields(form);
+        scheduleAutoTranslate(form);
+        return;
+      }
+      if (name.startsWith("translation-") && target instanceof HTMLInputElement) {
+        delete target.dataset.autoTranslated;
+      }
+    });
+
+    app.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      const name = target.getAttribute("name");
+      if (name === "language") {
+        const form = target.closest(".card-form");
+        if (!form) return;
+        clearAutoTranslatedFields(form);
+        scheduleAutoTranslate(form);
+        return;
+      }
+      if (name === "default-language") {
+        store.dispatch({ type: "settings/set", payload: { defaultCardLanguage: target.value } });
+        persistSettings(store.getState().settings);
+      }
     });
 
     app.addEventListener("submit", (event) => {
