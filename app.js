@@ -474,9 +474,7 @@ import { buildCardKey, validateBackup, mergeCards, prepareIncoming } from "./bac
       <h2 class="empty-state__title">${t("emptyTitle")}</h2>
       <p class="panel__content">${t("emptyDesc")}</p>
       <div class="empty-state__actions">
-        <button class="empty-state__button" type="button" data-action="open-create">${t("createCard")}</button>
         <button class="empty-state__button" type="button" data-action="import-csv">${t("importCsv")}</button>
-        <button class="empty-state__button" type="button">${t("settings")}</button>
       </div>
     </section>
   `;
